@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: task-api
+    
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskapi
+    username: ${DB_USER:thiago}
+    password: ${DB_PASSWORD:thi03lego42}
+    
+  jpa:  
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8081
