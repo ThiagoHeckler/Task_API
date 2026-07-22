@@ -1,0 +1,5 @@
+ id |  name  |      email       |                        password_hash                         
+----+--------+------------------+--------------------------------------------------------------
+  1 | Thiago | thiago@teste.com | $2a$10$.SItW.bkKZu9kQ/ghfQxfugYCQrVKZ67en3gkELI6YjTI3HE0TmhK
+(1 linha)
+

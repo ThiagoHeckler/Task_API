@@ -29,7 +29,7 @@ public class User {
 	@Column(name = "created_at", insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 	
-	protected User() {
+	public User() {
 	}
 
 	public long getId() {
