@@ -1,5 +1,9 @@
 package com.thiago.taskapi.task_api.service;
 
+
+
+import java.util.List;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,5 +45,18 @@ public class UserService {
 				user.getEmail(),
 				user.getCreatedAt()
 				);
+	}
+	
+	public List<UserResponse> findAll() {
+		return userRepository.findAll()
+				.stream()
+				.map(this::toResponse)
+				.toList();
+	}
+	
+	public UserResponse findById(Long id) {
+		User user = userRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+	return toResponse(user);
 	}
 }

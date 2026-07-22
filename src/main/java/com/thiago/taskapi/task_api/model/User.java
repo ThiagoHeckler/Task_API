@@ -2,6 +2,9 @@ package com.thiago.taskapi.task_api.model;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -26,6 +29,7 @@ public class User {
 	@Column(name = "password_hash", nullable = false)
 	private String passwordHash;
 	
+	@Generated(event = EventType.INSERT)
 	@Column(name = "created_at", insertable = false, updatable = false)
 	private LocalDateTime createdAt;
 	
