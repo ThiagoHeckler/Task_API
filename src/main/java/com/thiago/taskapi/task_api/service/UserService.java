@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import com.thiago.taskapi.task_api.dto.CreateUserRequest;
 import com.thiago.taskapi.task_api.dto.UserResponse;
+import com.thiago.taskapi.task_api.exception.DuplicateResourceException;
+import com.thiago.taskapi.task_api.exception.ResourceNotFoundException;
 import com.thiago.taskapi.task_api.model.User;
 import com.thiago.taskapi.task_api.repository.UserRepository;
 
@@ -25,7 +27,7 @@ public class UserService {
 	
 	public UserResponse create(CreateUserRequest request) {
 		if (userRepository.existsByEmail(request.email())) {
-			throw new IllegalArgumentException("Email já cadastrado");
+			throw new DuplicateResourceException("Email já cadastrado: " + request.email());
 		}
 		
 		User user = new User();
@@ -56,7 +58,7 @@ public class UserService {
 	
 	public UserResponse findById(Long id) {
 		User user = userRepository.findById(id)
-				.orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com id: " + id));
 	return toResponse(user);
 	}
 }

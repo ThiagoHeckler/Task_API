@@ -34,7 +34,7 @@ public class Category {
 	@Column(nullable = false, length = 7)
 	private String color = "#6366f1";
 	
-	protected Category() {
+	public Category() {
 	}
 
 	public Long getId() {

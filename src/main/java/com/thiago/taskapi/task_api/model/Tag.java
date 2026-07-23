@@ -31,7 +31,7 @@ public class Tag {
 	@Column(nullable = false, length = 50)
 	private String name;
 	
-	protected Tag() {
+	public Tag() {
 	}
 
 	public Long getId() {
