@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: task-api
+    
+  datasource:
+    url: jdbc:postgresql://localhost:5432/taskapi
+    username: ${DB_USER:seuUsuario}
+    password: ${DB_PASSWORD:suaSenha}
+    
+  jpa:  
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8081
+
+jwt:
+  secrect: ${JWT_SECRET:desenvolvimento-local-chave-de-no-minimo-32-caracteres-nao-usar-em-producao}
+  expiration: 3600000
