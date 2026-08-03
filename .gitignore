@@ -1,0 +1,25 @@
+# Build
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE - Eclipse / STS
+.metadata/
+.settings/
+.project
+.classpath
+.factorypath
+bin/
+
+# IDE - IntelliJ / VS Code
+.idea/
+*.iml
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs e ambiente
+*.log
+.env
+*application.yml 
