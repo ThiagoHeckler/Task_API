@@ -41,6 +41,17 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
 	}
 	
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex){
+		ErrorResponse error = new ErrorResponse(
+				Instant.now(),
+				HttpStatus.UNAUTHORIZED.value(),
+				HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+				ex.getMessage()
+		);
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+	}
+	
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ValidationErrorResponse> handleValidation(MethodArgumentNotValidException ex){
 		Map<String, String> fields = new LinkedHashMap<>();

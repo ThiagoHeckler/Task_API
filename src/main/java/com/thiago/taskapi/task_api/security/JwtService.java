@@ -26,6 +26,10 @@ public class JwtService {
 		this.expiration = expiration;
 	}
 
+	public long getExpiration() {
+		return expiration;
+	}
+	
 	public String generateToken(Long userId) {
 		Date now = new Date();
 
