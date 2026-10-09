@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +22,7 @@ import com.thiago.taskapi.task_api.service.CategoryService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/users/{userId}/categories")
+@RequestMapping("/categories")
 public class CategoryController {
 
 	private final CategoryService categoryService;
@@ -31,28 +32,28 @@ public class CategoryController {
 	}
 	
 	@PostMapping
-	public ResponseEntity<CategoryResponse> create(@PathVariable Long userId,@Valid @RequestBody CreateCategoryRequest request) {
+	public ResponseEntity<CategoryResponse> create(@AuthenticationPrincipal Long userId, @Valid @RequestBody CreateCategoryRequest request) {
 		CategoryResponse response = categoryService.create(userId, request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 	
 	@GetMapping
-	public ResponseEntity<List<CategoryResponse>> findAll(@PathVariable Long userId) {
+	public ResponseEntity<List<CategoryResponse>> findAll(@AuthenticationPrincipal Long userId) {
 		return ResponseEntity.ok(categoryService.findAllByUser(userId));
 	}
 	
 	@GetMapping("/{id}")
-	public ResponseEntity<CategoryResponse> findById(@PathVariable Long userId, @PathVariable Long id){
+	public ResponseEntity<CategoryResponse> findById(@AuthenticationPrincipal Long userId, @PathVariable Long id){
 		return ResponseEntity.ok(categoryService.findById(id, userId));
 	}
 	
 	@PutMapping("/{id}")
-	public ResponseEntity<CategoryResponse> update(@PathVariable Long userId, @PathVariable Long id, @Valid @RequestBody UpdateCategoryRequest request) {
+	public ResponseEntity<CategoryResponse> update(@AuthenticationPrincipal Long userId, @PathVariable Long id, @Valid @RequestBody UpdateCategoryRequest request) {
 		return ResponseEntity.ok(categoryService.update(id, userId, request));
 	}
 	
 	@DeleteMapping("/{id}")
-	public ResponseEntity<Void> delete(@PathVariable Long userId, @PathVariable Long id) {
+	public ResponseEntity<Void> delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
 		categoryService.delete(id, userId);
 		return ResponseEntity.noContent().build();
 	}

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,7 +24,7 @@ import com.thiago.taskapi.task_api.service.TaskService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/users/{userId}/tasks")
+@RequestMapping("/tasks")
 public class TaskController {
 
 	private final TaskService taskService;
@@ -33,13 +34,13 @@ public class TaskController {
 	}
 	
 	@PostMapping
-	public ResponseEntity<TaskResponse> create(@PathVariable Long userId,@Valid @RequestBody CreateTaskRequest request) {
+	public ResponseEntity<TaskResponse> create(@AuthenticationPrincipal Long userId, @Valid @RequestBody CreateTaskRequest request) {
 		TaskResponse response = taskService.create(userId, request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(response);
 	}
 	
 	@GetMapping
-	public ResponseEntity<List<TaskResponse>> findAll(@PathVariable Long userId, @RequestParam(required = false) TaskStatus status){
+	public ResponseEntity<List<TaskResponse>> findAll(@AuthenticationPrincipal Long userId, @RequestParam(required = false) TaskStatus status){
 		if (status != null) {
 			return ResponseEntity.ok(taskService.findByStatus(userId, status));
 		}
@@ -47,22 +48,22 @@ public class TaskController {
 	}
 	
 	@GetMapping("/root")
-	public ResponseEntity<List<TaskResponse>> findRoot(@PathVariable Long userId) {
+	public ResponseEntity<List<TaskResponse>> findRoot(@AuthenticationPrincipal Long userId) {
 		return ResponseEntity.ok(taskService.findRootTasks(userId));
 	}
 	
 	@GetMapping("/{id}")
-	public ResponseEntity<TaskResponse> findById(@PathVariable Long userId, @PathVariable Long id){
+	public ResponseEntity<TaskResponse> findById(@AuthenticationPrincipal Long userId, @PathVariable Long id){
 		return ResponseEntity.ok(taskService.findById(id, userId));
 	}
 	
 	@PutMapping("/{id}")
-	public ResponseEntity<TaskResponse> update(@PathVariable Long userId, @PathVariable Long id, @Valid @RequestBody UpdateTaskRequest request) {
+	public ResponseEntity<TaskResponse> update(@AuthenticationPrincipal Long userId, @PathVariable Long id, @Valid @RequestBody UpdateTaskRequest request) {
 		return ResponseEntity.ok(taskService.update(id, userId, request));
 	}
 	
-	@DeleteMapping("{id}")
-	public ResponseEntity<Void> delete(@PathVariable Long userId, @PathVariable Long id) {
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> delete(@AuthenticationPrincipal Long userId, @PathVariable Long id) {
 		taskService.delete(id, userId);
 		return ResponseEntity.noContent().build();
 	}

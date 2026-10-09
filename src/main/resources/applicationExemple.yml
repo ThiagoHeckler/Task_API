@@ -1,6 +1,10 @@
 spring:
   application:
     name: task-api
+
+  web:
+    error:
+      include-stacktrace: never
     
   datasource:
     url: jdbc:postgresql://localhost:5440/taskapi
