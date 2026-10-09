@@ -3,9 +3,9 @@ spring:
     name: task-api
     
   datasource:
-    url: jdbc:postgresql://localhost:5432/taskapi
-    username: ${DB_USER:seuUsuario}
-    password: ${DB_PASSWORD:suaSenha}
+    url: jdbc:postgresql://localhost:5440/taskapi
+    username: ${DB_USER:thiago}
+    password: ${DB_PASSWORD:thiago}
     
   jpa:  
     hibernate:
@@ -19,5 +19,5 @@ server:
   port: 8081
 
 jwt:
-  secrect: ${JWT_SECRET:desenvolvimento-local-chave-de-no-minimo-32-caracteres-nao-usar-em-producao}
+  secret: ${JWT_SECRET:desenvolvimento-local-chave-de-no-minimo-32-caracteres-nao-usar-em-producao}
   expiration: 3600000
