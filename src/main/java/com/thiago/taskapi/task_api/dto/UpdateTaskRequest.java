@@ -6,10 +6,13 @@ import java.util.Set;
 import com.thiago.taskapi.task_api.model.enums.TaskPriority;
 import com.thiago.taskapi.task_api.model.enums.TaskStatus;
 
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record UpdateTaskRequest(
-	@Size(max = 50, message = "O nome deve ter no máximo 50 caracteres")
+	// null = não alterar; por isso @Pattern em vez de @NotBlank (que recusaria o null).
+	@Size(max = 255, message = "O título deve ter no máximo 255 caracteres")
+	@Pattern(regexp = ".*\\S.*", message = "O título não pode ficar em branco")
 	String title,
 	
 	String description,

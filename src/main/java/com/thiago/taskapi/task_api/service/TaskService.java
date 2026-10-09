@@ -14,6 +14,7 @@ import com.thiago.taskapi.task_api.dto.CreateTaskRequest;
 import com.thiago.taskapi.task_api.dto.TagResponse;
 import com.thiago.taskapi.task_api.dto.TaskResponse;
 import com.thiago.taskapi.task_api.dto.UpdateTaskRequest;
+import com.thiago.taskapi.task_api.exception.BusinessRuleException;
 import com.thiago.taskapi.task_api.exception.ResourceNotFoundException;
 import com.thiago.taskapi.task_api.model.Category;
 import com.thiago.taskapi.task_api.model.Tag;
@@ -66,6 +67,10 @@ public class TaskService {
 	  if (request.parentTaskId() != null) {
 		  Task parent = taskRepository.findByIdAndUserId(request.parentTaskId(), userId)
 				  .orElseThrow(() -> new ResourceNotFoundException("Tarefa pai não encontrada com id: " + request.parentTaskId()));
+		  // A trigger trg_tasks_one_level garante a regra no banco; aqui ela vira um 422 legível.
+		  if (parent.getParentTask() != null) {
+			  throw new BusinessRuleException("Uma subtarefa não pode ter subtarefas");
+		  }
 		  task.setParentTask(parent);
 	  }
 	  
@@ -182,7 +187,8 @@ public class TaskService {
 		  task.setTags(tags);
 	  }
 	  
-	  return toResponse(taskRepository.save(task));
+	  // saveAndFlush força o UPDATE agora, para o Hibernate reler o updated_at gerado pela trigger.
+	  return toResponse(taskRepository.saveAndFlush(task));
   }
   
   @Transactional
