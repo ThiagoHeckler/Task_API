@@ -1,7 +1,7 @@
 # Task API — contexto do projeto
 
 Documento de passagem de contexto para continuar o desenvolvimento no Claude Code.
-Estado em 09/10/2026.
+Estado em 09/10/2026 (atualizado ao fim da fase 7).
 
 ---
 
@@ -34,17 +34,19 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 | Java | 25 (Temurin via SDKMAN) |
 | Spring Boot | 4.1.0 (`spring-boot-starter-webmvc`, data-jpa, validation, security) |
 | Hibernate | 7.4.1 |
-| PostgreSQL | 18 |
+| Jackson | 3 (pacote `tools.jackson`; o bean é `JsonMapper`) |
+| PostgreSQL | 18 (container Docker) |
 | Maven | 3.9.16 (wrapper `./mvnw` versionado em `.mvn/`) |
 | JWT | JJWT 0.12.6 (`jjwt-api` compile; `jjwt-impl` e `jjwt-jackson` runtime) |
 
 - **Porta da aplicação: 8081** (a 8080 está ocupada por um container Docker).
-- Banco: `taskapi`, role `thiago`.
-- Duas máquinas sincronizadas pelo GitHub:
-  - Desktop Zorin OS → PostgreSQL nativo
-  - Notebook Elementary OS → PostgreSQL via Docker Compose
+- **Banco via `docker-compose.yml`**: container `taskapi-db`, imagem `postgres:18-alpine`,
+  porta **5440** no host (5432–5434 estão ocupadas por outros projetos). Banco `taskapi`,
+  usuário/senha `thiago`/`thiago` por padrão (`DB_USER` / `DB_PASSWORD`).
+- **Uma máquina só**: o desenvolvimento continua apenas na máquina com Arch Linux. Os clones
+  antigos (Zorin, Elementary) foram abandonados e têm histórico incompatível (ver seção 10).
 - `application.yml` está no `.gitignore`. O modelo versionado é
-  `src/main/resources/applicationExemple.yml`.
+  `src/main/resources/applicationExemple.yml` — mudanças de configuração vão nos dois.
 
 ---
 
@@ -54,16 +56,19 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 src/main/java/com/thiago/taskapi/task_api/
 ├── TaskApiApplication.java   # exclui UserDetailsServiceAutoConfiguration
 ├── config/      SecurityConfig
-├── controller/  UserController, CategoryController, TagController, TaskController
+├── security/    JwtService, JwtAuthenticationFilter, RestAuthenticationHandler
+├── controller/  AuthController, UserController, CategoryController, TagController, TaskController
 ├── dto/         records de request/response + ErrorResponse, ValidationErrorResponse
-├── exception/   ResourceNotFoundException, DuplicateResourceException, GlobalExceptionHandler
+├── exception/   ResourceNotFoundException, DuplicateResourceException,
+│                InvalidCredentialsException, GlobalExceptionHandler
 ├── model/       User, Category, Tag, Task
 │   └── enums/   TaskStatus (PENDING, IN_PROGRESS, COMPLETED), TaskPriority (LOW, MEDIUM, HIGH)
 ├── repository/  UserRepository, CategoryRepository, TagRepository, TaskRepository
-└── service/     UserService, CategoryService, TagService, TaskService
+└── service/     AuthService, UserService, CategoryService, TagService, TaskService
 src/main/resources/
-├── schema.sql              # schema aplicado manualmente
+├── schema.sql              # aplicado pelo docker-compose na primeira subida
 └── applicationExemple.yml  # modelo de configuração
+docker-compose.yml          # PostgreSQL 18 na porta 5440
 ```
 
 Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api` com hífen).
@@ -72,8 +77,9 @@ Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api`
 
 ## 5. Banco de dados
 
-O **banco é a fonte da verdade**: `ddl-auto: validate`, schema aplicado à mão com
-`psql -d taskapi -f src/main/resources/schema.sql`.
+O **banco é a fonte da verdade**: `ddl-auto: validate`. O `schema.sql` é montado em
+`/docker-entrypoint-initdb.d/` e roda **só quando o volume está vazio** — mudou o schema,
+precisa recriar o volume (`docker compose down -v && docker compose up -d`).
 
 Tabelas: `users`, `categories`, `tags`, `tasks`, `task_tags` (pivô N:N).
 
@@ -118,25 +124,45 @@ Pontos de design do schema:
   - 400 tipo de parâmetro errado (`getRequiredType()` tratado como possivelmente nulo)
   - Status e textos vêm de `HttpStatus` (`value()` / `getReasonPhrase()`), timestamps em `Instant`.
 - **`@Valid` vai no `@RequestBody`**, não no `@PathVariable`.
-- **Spring Security entrou cedo só pelo BCrypt.** `SecurityConfig` com `permitAll`, CSRF,
-  `formLogin` e `httpBasic` desabilitados; `UserDetailsServiceAutoConfiguration` excluída
-  na classe principal.
 - **JJWT escolhido em vez de Nimbus** pelo valor didático.
-- **Rotas provisoriamente escopadas por usuário:** `/users/{userId}/...`. Com o JWT pronto,
-  o usuário autenticado deve vir do token e o `{userId}` sai da URL.
+- **JWT:** segredo em `jwt.secret` (`${JWT_SECRET:fallback}`), expiração `jwt.expiration`
+  = 1 h; subject = `userId`; chave criada uma vez com `Keys.hmacShaKeyFor()` (lança
+  `WeakKeyException` com menos de 32 bytes — a app nem sobe). Com o segredo atual o
+  algoritmo sai HS512. **Sem refresh token** (limitação consciente).
+- **Login (`AuthService`):** e-mail inexistente e senha errada dão o mesmo 401
+  "Credenciais inválidas", **inclusive no tempo** — sem usuário, o BCrypt roda contra um
+  hash falso gerado no construtor.
+- **Filtro (`JwtAuthenticationFilter`) não é `@Component`:** o Boot registraria o bean
+  também como filtro de servlet e ele rodaria duas vezes. É instanciado no `SecurityConfig`.
+  Token ausente/inválido → segue sem autenticação; o 401 sai do entry point. O filtro não
+  consulta o banco: token de usuário excluído vale até expirar (operações dão 404).
+- **`SecurityConfig`:** `STATELESS`; públicos só `POST /auth/login` e `POST /users`;
+  `DispatcherType.ERROR` liberado (senão o despacho para `/error` perde a autenticação e
+  todo 404/500 vira 401).
+- **401/403 via `RestAuthenticationHandler`** (entry point + access denied handler),
+  escrevendo `ErrorResponse` com o `JsonMapper`. O `@RestControllerAdvice` não alcança
+  exceções lançadas nos filtros.
+- **Usuário vem do token:** controllers recebem `@AuthenticationPrincipal Long userId`;
+  não existe `{userId}` em nenhuma URL. Usuário só opera a própria conta (`/users/me`);
+  `GET /users` e `/users/{id}` foram removidos (não há papel de admin).
+- **Recurso de outro usuário → 404, não 403** (não confirmar que o id existe).
+- **Stack trace nunca vai na resposta:** `spring.web.error.include-stacktrace: never`.
+  No Boot 4 a propriedade antiga `server.error.*` é ignorada.
 
 ---
 
 ## 7. Endpoints atuais
 
-Todos funcionais e testados via curl.
+Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
+`Authorization: Bearer <token>`.
 
 | Recurso | Rotas |
 |---|---|
-| Usuários | `POST /users`, `GET /users`, `GET /users/{id}`, `PUT /users/{id}`, `DELETE /users/{id}` |
-| Categorias | `POST/GET /users/{userId}/categories`, `GET/PUT/DELETE /users/{userId}/categories/{id}` |
-| Tags | `POST/GET /users/{userId}/tags`, `GET/PUT/DELETE /users/{userId}/tags/{id}` |
-| Tarefas | `POST/GET /users/{userId}/tasks` (`?status=` opcional), `GET /users/{userId}/tasks/root`, `GET/PUT/DELETE /users/{userId}/tasks/{id}` |
+| Auth | `POST /auth/login` (público) → `{token, type: "Bearer", expiresIn}` |
+| Usuários | `POST /users` (público), `GET/PUT/DELETE /users/me` |
+| Categorias | `POST/GET /categories`, `GET/PUT/DELETE /categories/{id}` |
+| Tags | `POST/GET /tags`, `GET/PUT/DELETE /tags/{id}` |
+| Tarefas | `POST/GET /tasks` (`?status=` opcional), `GET /tasks/root`, `GET/PUT/DELETE /tasks/{id}` |
 
 ---
 
@@ -150,52 +176,44 @@ Todos funcionais e testados via curl.
 | 4 | Repositories | ✅ |
 | 5 | DTOs | ✅ |
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
-| 7 | Autenticação JWT | 🚧 **em andamento** |
-| 8 | Swagger / OpenAPI | ⬜ |
+| 7 | Autenticação JWT | ✅ |
+| 8 | Swagger / OpenAPI | ⬜ **próxima** |
 | 9 | Deploy | ⬜ |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
 | 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
 
-> O README usa outra numeração (JWT aparece como fase 9). Alinhar quando for atualizar o README.
+README e este documento usam a mesma numeração.
 
 ---
 
-## 9. Fase 7 — JWT: onde paramos
+## 9. Próximo passo — fase 8 (Swagger)
 
-Já decidido:
-- Segredo via `${JWT_SECRET:fallback}` no `application.yml`; expiração de 1 hora
-  (`3600000` ms); **sem refresh token** (limitação consciente).
-- Subject do token = `userId` (`Long`).
-- Chave criada uma vez no construtor com `Keys.hmacShaKeyFor()`.
-- API do JJWT 0.12.x: `Jwts.parser().verifyWith(key).build().parseSignedClaims(token)`.
-  (`parseClaimsJws` / `setSigningKey` estão depreciados.)
-- `isTokenValid` captura `JwtException` e `IllegalArgumentException`.
+Motivação imediata: com JWT, a API não é testável pela barra do navegador (sem header
+`Authorization`). O Swagger UI resolve isso com "Try it out" + botão "Authorize".
 
-Situação: um `JwtService` foi escrito, mas a sessão terminou antes de testá-lo.
-**Ele não está entre os arquivos atuais do repositório** — verificar se ficou sem commit em
-alguma das máquinas antes de reescrever.
-
-Próximos passos sugeridos para a fase:
-1. Corrigir `secrect` → `secret` em `applicationExemple.yml` (e no `application.yml` local).
-   Esse typo é a causa provável de falha ao subir a app com `@Value("${jwt.secret}")`.
-2. Recuperar/validar o `JwtService` (gerar token, extrair `userId`, validar).
-3. DTOs `LoginRequest` / `LoginResponse` e `AuthController` com `POST /auth/login`
-   (busca por e-mail, `passwordEncoder.matches`, devolve token).
-4. Filtro `OncePerRequestFilter` que lê `Authorization: Bearer ...` e popula o
-   `SecurityContext`.
-5. `SecurityConfig`: sessão `STATELESS`, liberar `POST /auth/login` e `POST /users`,
-   exigir autenticação no resto; respostas 401/403 no mesmo formato de `ErrorResponse`.
-6. Tirar `{userId}` das rotas e usar o usuário do token; restringir `GET /users`
-   (hoje lista todos os usuários sem autenticação).
+Escopo previsto:
+1. Dependência `springdoc-openapi` compatível com Spring Boot 4.
+2. Configuração do esquema de segurança Bearer (JWT) no OpenAPI.
+3. Liberar `/swagger-ui/**` e `/v3/api-docs/**` no `SecurityConfig`.
+4. Decidir depois: anotações de descrição nos endpoints/DTOs e se o Swagger fica ativo
+   em produção.
 
 ---
 
 ## 10. Pendências e pontos de atenção encontrados no código
 
+Resolvido nesta rodada:
+- Arquivo `exit` (vazava e-mail e `password_hash`) removido **reescrevendo o histórico**
+  (force push em 09/10/2026). O GitHub pode manter o commit antigo `37b3cd4` acessível por
+  hash por um tempo; para remoção definitiva, pedir ao suporte do GitHub. Clones antigos
+  não devem dar `git pull` (traria o arquivo de volta).
+- README atualizado (rotas, schema, execução com Docker, numeração das fases).
+- Typo `secrect` no yml; imports sem uso no `TagController`; barra no `@DeleteMapping`
+  do `TaskController`.
+
 Segurança / repositório:
-- **Arquivo `exit` na raiz do projeto** contém a saída de um `SELECT` com e-mail e
-  `password_hash` de usuário. Parece ter sido criado sem querer no `psql`. Remover e garantir
-  que não fique no histórico do Git.
+- README cita licença MIT e um arquivo `LICENSE`, mas **o arquivo não existe**. Criar.
+- Push pendente: os commits da fase 7 estão só locais até o próximo `git push`.
 
 Bugs / comportamento:
 - Criar subtarefa de uma subtarefa dispara a trigger do banco, mas a exceção não é tratada →
@@ -203,28 +221,22 @@ Bugs / comportamento:
   `parentTask == null`) e/ou tratar `DataIntegrityViolationException` no handler.
 - `UpdateTaskRequest.title` tem `@Size(max = 50, message = "O nome ...")`, mas no create e no
   banco o limite é 255. Alinhar para 255 e corrigir a mensagem.
+- Erros que caem no `/error` padrão do Spring (ex.: 405) saem num formato diferente do
+  `ErrorResponse` (têm `path`). Padronizar, p. ex. estendendo `ResponseEntityExceptionHandler`.
+- Não há handler genérico para `Exception` → um erro inesperado sai no formato padrão do
+  Spring (já sem stack trace).
 
 Limpeza:
-- `TagService` e `TagController` importam `CategoryResponse`, `UpdateCategoryRequest` e
-  `Category` sem usar.
-- `UserService`, `CategoryService` e `TagService` não têm `@Transactional` (o `TaskService` tem).
-  Padronizar.
+- `TagService` ainda importa `CategoryResponse`, `UpdateCategoryRequest` e `Category` sem usar.
+- `UserService`, `CategoryService` e `TagService` não têm `@Transactional` (o `TaskService` e
+  o `AuthService` têm). Padronizar.
 - Typos em mensagens: `"ecnontrado"` (TaskService.create), `"catacteres"` (UpdateTagRequest),
   `"unknow"` (GlobalExceptionHandler).
-- `@DeleteMapping("{id}")` no `TaskController` sem a barra inicial — funciona, mas destoa dos
-  outros.
 - Comentário solto no fim do `TagRepository` (`// ver sobre ...bootstrap-mode`).
 - `TaskRepository.findByUserIdAndPriority` existe mas não é usado (dá para expor `?priority=`).
 - `toResponse` de `TaskService` acessa categoria e tags lazy → N+1 nas listagens. Avaliar
   `@EntityGraph` / `JOIN FETCH` mais adiante.
-
-README desatualizado:
-- Rotas listadas como `/categories`, `/tags`, `/tasks` (o real é `/users/{userId}/...`) e
-  marcadas como 🚧, mas já funcionam.
-- Caminho do schema aparece como `src/main/resources/db/schema.sql` (real:
-  `src/main/resources/schema.sql`) e configuração em `application.properties` (real: `.yml`).
-- Diagrama ER mostra `users.updated_at`, `timestamptz` e `due_date date`, que não batem com o
-  `schema.sql` (`TIMESTAMP`, sem `updated_at` em users).
+- Ordem dos campos no `ValidationErrorResponse` segue a ordem do Spring, não a do record.
 
 Adiado de propósito:
 - `Instant` vs `LocalDateTime` nos timestamps das entidades (os DTOs de erro já usam `Instant`).
@@ -235,20 +247,28 @@ Adiado de propósito:
 ## 11. Comandos úteis
 
 ```bash
-# subir a aplicação
+# subir o banco e a aplicação
+docker compose up -d
 ./mvnw spring-boot:run
 
-# recriar o schema do zero (CUIDADO: apaga dados)
-dropdb taskapi && createdb taskapi
-psql -d taskapi -f src/main/resources/schema.sql
+# recriar o banco do zero (CUIDADO: apaga dados; reaplica o schema.sql)
+docker compose down -v && docker compose up -d
 
-# exemplo: criar usuário
+# psql dentro do container
+docker exec -it taskapi-db psql -U thiago -d taskapi
+
+# criar usuário e fazer login
 curl -X POST http://localhost:8081/users \
   -H "Content-Type: application/json" \
   -d '{"name":"Thiago","email":"thiago@teste.com","password":"senhaSegura123"}'
 
-# exemplo: criar tarefa
-curl -X POST http://localhost:8081/users/1/tasks \
+TOKEN=$(curl -s -X POST http://localhost:8081/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"thiago@teste.com","password":"senhaSegura123"}' | jq -r .token)
+
+# criar tarefa autenticado
+curl -X POST http://localhost:8081/tasks \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"Estudar JWT","priority":"HIGH","tagIds":[1]}'
 ```
