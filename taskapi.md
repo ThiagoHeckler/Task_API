@@ -38,6 +38,7 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 | PostgreSQL | 18 (container Docker) |
 | Maven | 3.9.16 (wrapper `./mvnw` versionado em `.mvn/`) |
 | JWT | JJWT 0.12.6 (`jjwt-api` compile; `jjwt-impl` e `jjwt-jackson` runtime) |
+| OpenAPI | springdoc-openapi 3.1.1 (linha 3.x = Boot 4; a 2.x é para Boot 3) |
 
 - **Porta da aplicação: 8081** (a 8080 está ocupada por um container Docker).
 - **Banco via `docker-compose.yml`**: container `taskapi-db`, imagem `postgres:18-alpine`,
@@ -55,12 +56,12 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 ```
 src/main/java/com/thiago/taskapi/task_api/
 ├── TaskApiApplication.java   # exclui UserDetailsServiceAutoConfiguration
-├── config/      SecurityConfig
+├── config/      SecurityConfig, OpenApiConfig
 ├── security/    JwtService, JwtAuthenticationFilter, RestAuthenticationHandler
 ├── controller/  AuthController, UserController, CategoryController, TagController, TaskController
 ├── dto/         records de request/response + ErrorResponse, ValidationErrorResponse
 ├── exception/   ResourceNotFoundException, DuplicateResourceException,
-│                InvalidCredentialsException, GlobalExceptionHandler
+│                InvalidCredentialsException, BusinessRuleException, GlobalExceptionHandler
 ├── model/       User, Category, Tag, Task
 │   └── enums/   TaskStatus (PENDING, IN_PROGRESS, COMPLETED), TaskPriority (LOW, MEDIUM, HIGH)
 ├── repository/  UserRepository, CategoryRepository, TagRepository, TaskRepository
@@ -148,13 +149,34 @@ Pontos de design do schema:
 - **Recurso de outro usuário → 404, não 403** (não confirmar que o id existe).
 - **Stack trace nunca vai na resposta:** `spring.web.error.include-stacktrace: never`.
   No Boot 4 a propriedade antiga `server.error.*` é ignorada.
+- **Mapa de status de erro:** 400 JSON/validação/tipo de parâmetro · 401 sem token ou
+  credenciais inválidas · 404 não encontrado (ou de outro usuário) · 409 duplicidade ·
+  **422 regra de negócio** (`BusinessRuleException`, ex.: subtarefa de subtarefa) · 500 genérico.
+  422 sai como "Unprocessable Content" (`HttpStatus.UNPROCESSABLE_CONTENT`, Spring 7 / RFC 9110).
+- **Regras com trigger no banco também são checadas no service**, para virar uma resposta
+  legível; a trigger fica como garantia final.
+- **`DataIntegrityViolationException` → 409 genérico** ("A operação viola uma restrição dos
+  dados"), sem expor o SQL. Cobre corridas que passam pelo `existsBy...` do service
+  (testado: 20 `POST /tags` simultâneos → 1×201, 19×409).
+- **Handler genérico de `Exception`:** 500 "Erro interno do servidor" + log. Se a exceção
+  implementa `org.springframework.web.ErrorResponse` (405, 415... do Spring MVC), usa o status
+  e o detalhe dela — senão um 405 viraria 500. Com isso todo erro sai no formato `ErrorResponse`.
+- **Campos opcionais no update usam `@Pattern`/`@Size`, não `@NotBlank`:** `null` precisa
+  continuar significando "não alterar". Ex.: `UpdateTaskRequest.title` com
+  `@Pattern(".*\\S.*")` recusa só texto em branco.
+- **`update` usa `saveAndFlush`** quando a resposta depende de coluna gerada pelo banco
+  (`updated_at` via trigger); com `save()` o valor devolvido ficava antigo.
+- **Swagger:** esquema `bearerAuth` global no `OpenApiConfig`; rotas públicas tiram o cadeado
+  com `@SecurityRequirements` vazio. `@AuthenticationPrincipal` não aparece como parâmetro
+  (o springdoc ignora). `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**` liberados.
 
 ---
 
 ## 7. Endpoints atuais
 
 Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
-`Authorization: Bearer <token>`.
+`Authorization: Bearer <token>`. Documentação interativa em
+`http://localhost:8081/swagger-ui.html` (login → copiar token → "Authorize").
 
 | Recurso | Rotas |
 |---|---|
@@ -177,7 +199,7 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | 5 | DTOs | ✅ |
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
-| 8 | Swagger / OpenAPI | ⬜ **próxima** |
+| 8 | Swagger / OpenAPI | 🚧 funcional; faltam descrições e decisão sobre produção |
 | 9 | Deploy | ⬜ |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
 | 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
@@ -186,17 +208,15 @@ README e este documento usam a mesma numeração.
 
 ---
 
-## 9. Próximo passo — fase 8 (Swagger)
+## 9. Próximo passo
 
-Motivação imediata: com JWT, a API não é testável pela barra do navegador (sem header
-`Authorization`). O Swagger UI resolve isso com "Try it out" + botão "Authorize".
-
-Escopo previsto:
-1. Dependência `springdoc-openapi` compatível com Spring Boot 4.
-2. Configuração do esquema de segurança Bearer (JWT) no OpenAPI.
-3. Liberar `/swagger-ui/**` e `/v3/api-docs/**` no `SecurityConfig`.
-4. Decidir depois: anotações de descrição nos endpoints/DTOs e se o Swagger fica ativo
-   em produção.
+Fase 8 está funcional (Swagger UI com "Authorize"). Opções para seguir, a decidir:
+1. **Terminar a fase 8:** `@Tag` nos controllers ("Tarefas" em vez de "task-controller"),
+   `@Operation` com resumo por endpoint e `@Schema` com exemplos nos DTOs.
+2. **Limpeza da seção 10** (imports, `@Transactional`, typos) — pequena, dá para fazer junto.
+3. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
+   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`), e a
+   licença `LICENSE` antes de o repositório ficar em evidência.
 
 ---
 
@@ -210,21 +230,20 @@ Resolvido nesta rodada:
 - README atualizado (rotas, schema, execução com Docker, numeração das fases).
 - Typo `secrect` no yml; imports sem uso no `TagController`; barra no `@DeleteMapping`
   do `TaskController`.
+- Subtarefa de subtarefa dava 500 expondo o SQL da trigger → agora 422.
+- `UpdateTaskRequest.title` limitado a 50 com mensagem "nome" → 255, "título", e não aceita
+  título em branco (antes `"   "` era salvo).
+- `PUT /tasks/{id}` devolvia `updatedAt` antigo → `saveAndFlush`.
+- 405/415 saíam no formato padrão do Spring → agora `ErrorResponse`; handler genérico de 500.
 
 Segurança / repositório:
 - README cita licença MIT e um arquivo `LICENSE`, mas **o arquivo não existe**. Criar.
-- Push pendente: os commits da fase 7 estão só locais até o próximo `git push`.
+- Push pendente: os commits desde `c9a4d96` (fase 7, Swagger, bugs) estão só locais até o
+  próximo `git push`.
 
 Bugs / comportamento:
-- Criar subtarefa de uma subtarefa dispara a trigger do banco, mas a exceção não é tratada →
-  hoje vira **500**. Opções: validar no `TaskService.create` (pai precisa ter
-  `parentTask == null`) e/ou tratar `DataIntegrityViolationException` no handler.
-- `UpdateTaskRequest.title` tem `@Size(max = 50, message = "O nome ...")`, mas no create e no
-  banco o limite é 255. Alinhar para 255 e corrigir a mensagem.
-- Erros que caem no `/error` padrão do Spring (ex.: 405) saem num formato diferente do
-  `ErrorResponse` (têm `path`). Padronizar, p. ex. estendendo `ResponseEntityExceptionHandler`.
-- Não há handler genérico para `Exception` → um erro inesperado sai no formato padrão do
-  Spring (já sem stack trace).
+- Nenhum bug conhecido em aberto. Limitação conhecida (decisão da seção 6): PUT não consegue
+  limpar campo opcional (`categoryId`, `dueDate`, `description`) enviando `null`.
 
 Limpeza:
 - `TagService` ainda importa `CategoryResponse`, `UpdateCategoryRequest` e `Category` sem usar.

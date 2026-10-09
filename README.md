@@ -8,7 +8,7 @@ API REST de gerenciamento de tarefas (to-do list) com autenticação JWT, constr
 ![Maven](https://img.shields.io/badge/Maven-C71A36)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. Os próximos passos são documentação com Swagger e deploy. O roadmap completo está no final deste documento.
+> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI; o próximo passo é o deploy. O roadmap completo está no final deste documento.
 
 ---
 
@@ -31,7 +31,7 @@ O projeto foi construído do zero, sem geradores de código ou scaffolding, com 
 | Segurança | Spring Security, BCrypt, JWT (JJWT 0.12.6) |
 | Validação | Jakarta Bean Validation |
 | Build | Maven |
-| Documentação | OpenAPI / Swagger UI (planejado) |
+| Documentação | OpenAPI / Swagger UI (springdoc) |
 
 ---
 
@@ -44,7 +44,7 @@ O projeto foi construído do zero, sem geradores de código ou scaffolding, com 
 - Tarefas com título, descrição, status, prioridade e data de vencimento
 - Subtarefas com **um único nível de aninhamento**, garantido pelo próprio banco
 - Relacionamento N:N entre tarefas e tags
-- Tratamento centralizado de erros com respostas padronizadas, inclusive 401 e 403
+- Tratamento centralizado de erros com respostas padronizadas (400, 401, 403, 404, 409, 422 e 500), sem expor detalhes internos
 
 ---
 
@@ -141,6 +141,8 @@ src/main/java/com/thiago/taskapi/task_api/
 ## Endpoints
 
 Exceto onde indicado, todas as rotas exigem o header `Authorization: Bearer <token>`.
+
+Com a aplicação rodando, a documentação interativa fica em **`http://localhost:8081/swagger-ui.html`**: faça login em `POST /auth/login`, copie o token e cole em **Authorize** para testar qualquer rota pelo navegador.
 
 ### Autenticação
 
@@ -304,7 +306,7 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 5 | DTOs | ✅ |
 | 6 | Services e controllers (CRUD completo) | ✅ |
 | 7 | Autenticação com JWT | ✅ |
-| 8 | Documentação com Swagger / OpenAPI | ⬜ |
+| 8 | Documentação com Swagger / OpenAPI | 🚧 |
 | 9 | Deploy | ⬜ |
 | 10 | Testes automatizados e polimento | ⬜ |
 | 11 | Front-end de vitrine *(opcional)* | ⬜ |
