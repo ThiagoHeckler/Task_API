@@ -16,6 +16,7 @@ import com.thiago.taskapi.task_api.dto.UpdateUserRequest;
 import com.thiago.taskapi.task_api.dto.UserResponse;
 import com.thiago.taskapi.task_api.service.UserService;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 
 @RestController
@@ -28,6 +29,8 @@ public class UserController {
 		this.userService = userService;
 	}
 	
+	// Rota pública: remove o cadeado global no Swagger.
+	@SecurityRequirements
 	@PostMapping
 	public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request){
 		UserResponse response = userService.create(request);

@@ -10,6 +10,7 @@ import com.thiago.taskapi.task_api.dto.LoginRequest;
 import com.thiago.taskapi.task_api.dto.LoginResponse;
 import com.thiago.taskapi.task_api.service.AuthService;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 
 @RestController
@@ -22,6 +23,8 @@ public class AuthController {
 		this.authService = authService;
 	}
 	
+	// Rota pública: remove o cadeado global no Swagger.
+	@SecurityRequirements
 	@PostMapping("/login")
 	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ResponseEntity.ok(authService.login(request));
