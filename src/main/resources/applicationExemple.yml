@@ -25,3 +25,6 @@ server:
 jwt:
   secret: ${JWT_SECRET:desenvolvimento-local-chave-de-no-minimo-32-caracteres-nao-usar-em-producao}
   expiration: 3600000
+
+springdoc:
+  default-produces-media-type: application/json

@@ -142,7 +142,7 @@ src/main/java/com/thiago/taskapi/task_api/
 
 Exceto onde indicado, todas as rotas exigem o header `Authorization: Bearer <token>`.
 
-Com a aplicação rodando, a documentação interativa fica em **`http://localhost:8081/swagger-ui.html`**: faça login em `POST /auth/login`, copie o token e cole em **Authorize** para testar qualquer rota pelo navegador.
+Com a aplicação rodando, a documentação interativa fica em **`http://localhost:8081/swagger-ui.html`**: faça login em `POST /auth/login`, copie o token e cole em **Authorize** para testar qualquer rota pelo navegador. Cada endpoint traz descrição, exemplos de requisição e os códigos de resposta possíveis.
 
 ### Autenticação
 
@@ -306,7 +306,7 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 5 | DTOs | ✅ |
 | 6 | Services e controllers (CRUD completo) | ✅ |
 | 7 | Autenticação com JWT | ✅ |
-| 8 | Documentação com Swagger / OpenAPI | 🚧 |
+| 8 | Documentação com Swagger / OpenAPI | ✅ |
 | 9 | Deploy | ⬜ |
 | 10 | Testes automatizados e polimento | ⬜ |
 | 11 | Front-end de vitrine *(opcional)* | ⬜ |

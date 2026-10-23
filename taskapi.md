@@ -1,7 +1,7 @@
 # Task API — contexto do projeto
 
 Documento de passagem de contexto para continuar o desenvolvimento no Claude Code.
-Estado em 23/10/2026 (limpeza da seção 10 concluída; próximo: terminar a fase 8).
+Estado em 23/10/2026 (fase 8 concluída; próximo: fase 9, deploy).
 
 ---
 
@@ -169,6 +169,15 @@ Pontos de design do schema:
 - **Swagger:** esquema `bearerAuth` global no `OpenApiConfig`; rotas públicas tiram o cadeado
   com `@SecurityRequirements` vazio. `@AuthenticationPrincipal` não aparece como parâmetro
   (o springdoc ignora). `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**` liberados.
+- **Documentação dos endpoints:** `@Tag` em português por controller, `@Operation` (resumo e,
+  quando há regra, descrição), um `@ApiResponse` por código de sucesso/erro com o schema certo
+  (`ValidationErrorResponse` no 400 de corpo, `ErrorResponse` no resto) e `@Schema(example)`
+  nos DTOs de request. Sucesso declarado explicitamente (201/204), senão o springdoc mostra 200.
+- **401 documentado num lugar só:** `OpenApiCustomizer` no `OpenApiConfig` adiciona o 401 a toda
+  operação com `security == null` (herda o requirement global); as públicas têm lista vazia e
+  ficam de fora. O `/auth/login` declara o próprio 401 (credenciais inválidas).
+- **`springdoc.default-produces-media-type: application/json`** — sem isso as respostas
+  aparecem como `*/*` no Swagger. Precisa estar também no `application.yml` local.
 
 ---
 
@@ -199,7 +208,7 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | 5 | DTOs | ✅ |
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
-| 8 | Swagger / OpenAPI | 🚧 funcional; faltam descrições e decisão sobre produção |
+| 8 | Swagger / OpenAPI | ✅ (ligar ou não em produção fica para a fase 9) |
 | 9 | Deploy | ⬜ |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
 | 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
@@ -210,12 +219,8 @@ README e este documento usam a mesma numeração.
 
 ## 9. Próximo passo
 
-Fase 8 está funcional (Swagger UI com "Authorize"). Ordem combinada:
-1. **Terminar a fase 8:** `@Tag` nos controllers ("Tarefas" em vez de "task-controller"),
-   `@Operation` com resumo por endpoint, `@ApiResponse` para os erros principais e
-   `@Schema` com exemplos nos DTOs.
-2. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
-   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
+**Fase 9 (deploy)**, a decidir: plataforma, segredo `JWT_SECRET` real, desligar Swagger em
+produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
 
 ---
 
@@ -227,6 +232,8 @@ Resolvido em 23/10/2026:
 - Imports sem uso no `TagService`; typos `ecnontrado`, `catacteres`, `unknow`; comentário
   solto no `TagRepository`.
 - Push dos commits da fase 7 / Swagger / bugs feito.
+- Fase 8 concluída: todos os endpoints documentados no Swagger (seções em português, códigos
+  de resposta, exemplos nos DTOs).
 
 Resolvido em 09/10/2026:
 - Arquivo `exit` (vazava e-mail e `password_hash`) removido **reescrevendo o histórico**

@@ -1,9 +1,11 @@
 package com.thiago.taskapi.task_api.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
 public record UpdateUserRequest(
+		@Schema(example = "Thiago Heckler")
 		@Size(max = 100, message = "O nome deve ter no máximo 100 caracteres")
 		String name,
 		
