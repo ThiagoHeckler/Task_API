@@ -1,7 +1,7 @@
 # Task API — contexto do projeto
 
 Documento de passagem de contexto para continuar o desenvolvimento no Claude Code.
-Estado em 09/10/2026 (atualizado ao fim da fase 7).
+Estado em 23/10/2026 (limpeza da seção 10 concluída; próximo: terminar a fase 8).
 
 ---
 
@@ -115,8 +115,8 @@ Pontos de design do schema:
 - **Título de tarefa pode repetir** (sem checagem de duplicidade, de propósito).
 - **Padrão de checagem de duplicidade no update:**
   `!novo.equals(atual) && existsBy...` — evita conflito falso ao reenviar o mesmo valor.
-- **Transações em `TaskService`:** `@Transactional(readOnly = true)` na classe,
-  `@Transactional` nos métodos de escrita.
+- **Transações nos services:** `@Transactional(readOnly = true)` na classe,
+  `@Transactional` nos métodos de escrita (padrão em todos os services).
 - **Erros padronizados** via `@RestControllerAdvice`:
   - 404 `ResourceNotFoundException`, 409 `DuplicateResourceException`
   - 400 validação (`ValidationErrorResponse` com mapa `campo → mensagem`, `LinkedHashMap`
@@ -210,19 +210,25 @@ README e este documento usam a mesma numeração.
 
 ## 9. Próximo passo
 
-Fase 8 está funcional (Swagger UI com "Authorize"). Opções para seguir, a decidir:
+Fase 8 está funcional (Swagger UI com "Authorize"). Ordem combinada:
 1. **Terminar a fase 8:** `@Tag` nos controllers ("Tarefas" em vez de "task-controller"),
-   `@Operation` com resumo por endpoint e `@Schema` com exemplos nos DTOs.
-2. **Limpeza da seção 10** (imports, `@Transactional`, typos) — pequena, dá para fazer junto.
-3. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
-   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`), e a
-   licença `LICENSE` antes de o repositório ficar em evidência.
+   `@Operation` com resumo por endpoint, `@ApiResponse` para os erros principais e
+   `@Schema` com exemplos nos DTOs.
+2. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
+   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
 
 ---
 
 ## 10. Pendências e pontos de atenção encontrados no código
 
-Resolvido nesta rodada:
+Resolvido em 23/10/2026:
+- Arquivo `LICENSE` (MIT) criado.
+- `@Transactional` padronizado em `UserService`, `CategoryService` e `TagService`.
+- Imports sem uso no `TagService`; typos `ecnontrado`, `catacteres`, `unknow`; comentário
+  solto no `TagRepository`.
+- Push dos commits da fase 7 / Swagger / bugs feito.
+
+Resolvido em 09/10/2026:
 - Arquivo `exit` (vazava e-mail e `password_hash`) removido **reescrevendo o histórico**
   (force push em 09/10/2026). O GitHub pode manter o commit antigo `37b3cd4` acessível por
   hash por um tempo; para remoção definitiva, pedir ao suporte do GitHub. Clones antigos
@@ -236,22 +242,11 @@ Resolvido nesta rodada:
 - `PUT /tasks/{id}` devolvia `updatedAt` antigo → `saveAndFlush`.
 - 405/415 saíam no formato padrão do Spring → agora `ErrorResponse`; handler genérico de 500.
 
-Segurança / repositório:
-- README cita licença MIT e um arquivo `LICENSE`, mas **o arquivo não existe**. Criar.
-- Push pendente: os commits desde `c9a4d96` (fase 7, Swagger, bugs) estão só locais até o
-  próximo `git push`.
-
 Bugs / comportamento:
 - Nenhum bug conhecido em aberto. Limitação conhecida (decisão da seção 6): PUT não consegue
   limpar campo opcional (`categoryId`, `dueDate`, `description`) enviando `null`.
 
 Limpeza:
-- `TagService` ainda importa `CategoryResponse`, `UpdateCategoryRequest` e `Category` sem usar.
-- `UserService`, `CategoryService` e `TagService` não têm `@Transactional` (o `TaskService` e
-  o `AuthService` têm). Padronizar.
-- Typos em mensagens: `"ecnontrado"` (TaskService.create), `"catacteres"` (UpdateTagRequest),
-  `"unknow"` (GlobalExceptionHandler).
-- Comentário solto no fim do `TagRepository` (`// ver sobre ...bootstrap-mode`).
 - `TaskRepository.findByUserIdAndPriority` existe mas não é usado (dá para expor `?priority=`).
 - `toResponse` de `TaskService` acessa categoria e tags lazy → N+1 nas listagens. Avaliar
   `@EntityGraph` / `JOIN FETCH` mais adiante.

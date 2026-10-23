@@ -1,10 +1,8 @@
 package com.thiago.taskapi.task_api.service;
 
-
-
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.thiago.taskapi.task_api.dto.CreateUserRequest;
 import com.thiago.taskapi.task_api.dto.UpdateUserRequest;
@@ -15,6 +13,7 @@ import com.thiago.taskapi.task_api.model.User;
 import com.thiago.taskapi.task_api.repository.UserRepository;
 
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 	
 	private final UserRepository userRepository;
@@ -25,6 +24,7 @@ public class UserService {
 		this.passwordEncoder = passwordEncoder;
 	}
 	
+	@Transactional
 	public UserResponse create(CreateUserRequest request) {
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("Email já cadastrado: " + request.email());
@@ -55,6 +55,7 @@ public class UserService {
 	return toResponse(user);
 	}
 	
+	@Transactional
 	public UserResponse update(Long id, UpdateUserRequest request) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com id: " + id));
@@ -76,6 +77,7 @@ public class UserService {
 		return toResponse(userRepository.save(user));
 	}
 	
+	@Transactional
 	public void delete(Long id) {
 		User user = userRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com id: " + id));
