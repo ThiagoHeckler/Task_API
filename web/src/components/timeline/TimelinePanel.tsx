@@ -16,7 +16,7 @@ export function TimelinePanel({ waiting }: TimelinePanelProps) {
   const newestId = timeline[0]?.id
 
   return (
-    <div className="min-h-full bg-slate-900 font-mono text-sm text-slate-100">
+    <div className="min-h-full bg-slate-900 font-mono text-sm text-slate-100 [color-scheme:dark]">
       {waiting && (
         <p className="border-b border-slate-800 px-4 py-2 text-slate-400 italic">
           aguardando você salvar…
