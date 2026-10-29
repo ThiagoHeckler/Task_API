@@ -94,18 +94,21 @@ export function FormActions({ ready, saving, onCancel }: FormActionsProps) {
 
 type ItemActionsProps = {
   label: string
+  // Shown next to the confirmation (e.g. what else gets deleted).
+  warning?: string
   onEdit: () => void
   onDelete: () => void
   deleting: boolean
 }
 
 // Edit plus a delete that asks for confirmation inline before calling the API.
-export function ItemActions({ label, onEdit, onDelete, deleting }: ItemActionsProps) {
+export function ItemActions({ label, warning, onEdit, onDelete, deleting }: ItemActionsProps) {
   const [confirming, setConfirming] = useState(false)
 
   if (confirming) {
     return (
-      <div className="flex items-center gap-2 text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {warning && <span className="text-red-700">{warning}</span>}
         <button
           type="button"
           onClick={onDelete}

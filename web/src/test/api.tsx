@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { vi } from 'vitest'
 
@@ -44,4 +44,21 @@ export function renderWithQueryClient(ui: ReactElement) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
+
+// Long presets type for seconds in real time. Fake timers, advanced one tick
+// at a time inside an async act (so fetches resolve and React commits),
+// until the condition holds; real timers come back afterwards.
+export async function fastForwardUntil(condition: () => boolean, maxTicks = 1000) {
+  vi.useFakeTimers()
+  try {
+    for (let tick = 0; tick < maxTicks && !condition(); tick++) {
+      await act(async () => {
+        vi.advanceTimersByTime(25)
+      })
+    }
+  } finally {
+    vi.useRealTimers()
+  }
+  if (!condition()) throw new Error('fastForwardUntil: condition never held')
 }

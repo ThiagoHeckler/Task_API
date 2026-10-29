@@ -1,22 +1,33 @@
 const TIME_ZONE = 'America/Sao_Paulo'
 
-const displayFormat = new Intl.DateTimeFormat('pt-BR', {
+const saoPauloFormat = new Intl.DateTimeFormat('pt-BR', {
   timeZone: TIME_ZONE,
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
-  hour12: false,
+  hourCycle: 'h23',
 })
 
 // The API returns LocalDateTime in UTC without an offset.
+function saoPauloParts(apiValue: string): Record<string, string> {
+  return Object.fromEntries(
+    saoPauloFormat.formatToParts(new Date(`${apiValue}Z`)).map((p) => [p.type, p.value]),
+  )
+}
+
 export function formatApiDate(value: string | null): string {
   if (value === null) return '—'
-  const parts = Object.fromEntries(
-    displayFormat.formatToParts(new Date(`${value}Z`)).map((p) => [p.type, p.value]),
-  )
+  const parts = saoPauloParts(value)
   return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`
+}
+
+// API value (UTC) to the São Paulo wall time an <input type="datetime-local"> shows.
+export function toInputDateTime(value: string | null): string {
+  if (value === null) return ''
+  const parts = saoPauloParts(value)
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
 }
 
 // Offset of São Paulo from UTC, in minutes, at the given instant.

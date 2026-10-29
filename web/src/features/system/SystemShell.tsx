@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { AccountPage } from '@/features/account/AccountPage'
 import { CategoriesPage } from '@/features/categories/CategoriesPage'
 import { TagsPage } from '@/features/tags/TagsPage'
+import { TasksPage } from '@/features/tasks/TasksPage'
 
 const SECTIONS = [
   { id: 'tasks', label: 'Tarefas' },
@@ -44,11 +46,10 @@ export function SystemShell({ onWaitingChange }: SystemShellProps) {
       </nav>
       {/* Only the active section is mounted: opening it is what loads its list. */}
       <main className="min-w-0 flex-1 p-4">
+        {section === 'tasks' && <TasksPage onWaitingChange={onWaitingChange} />}
         {section === 'categories' && <CategoriesPage onWaitingChange={onWaitingChange} />}
         {section === 'tags' && <TagsPage onWaitingChange={onWaitingChange} />}
-        {(section === 'tasks' || section === 'account') && (
-          <p className="text-slate-500">Em construção.</p>
-        )}
+        {section === 'account' && <AccountPage onWaitingChange={onWaitingChange} />}
       </main>
     </div>
   )
