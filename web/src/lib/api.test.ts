@@ -132,3 +132,14 @@ test('returnsUndefinedOn204', async () => {
   expect(entry.status).toBe(204)
   expect(entry.responseBody).toBeNull()
 })
+
+test('abbreviatesTokenInResponseBody', async () => {
+  stubFetch(jsonResponse(200, { token: TOKEN, type: 'Bearer', expiresIn: 3600 }))
+
+  const login = await api<{ token: string }>('POST', '/auth/login', { email: 'a@b', password: 'x' })
+
+  expect(login.token).toBe(TOKEN)
+  const [entry] = getTimeline()
+  expect(JSON.stringify(entry)).not.toContain(TOKEN)
+  expect(entry.responseBody).toEqual({ token: `${TOKEN.slice(0, 10)}…`, type: 'Bearer', expiresIn: 3600 })
+})

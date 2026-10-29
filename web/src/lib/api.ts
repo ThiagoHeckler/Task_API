@@ -39,11 +39,22 @@ export function isDailyLimit(err: unknown): boolean {
   )
 }
 
-// The timeline is on screen: never show the whole token there.
+// The timeline is on screen (and may end up in a screenshot): never show a
+// whole token there, neither in the Authorization header nor in the login body.
+function abbreviateToken(token: string): string {
+  return `${token.slice(0, 10)}…`
+}
+
 function headersForTimeline(headers: Record<string, string>): Record<string, string> {
   const token = headers.Authorization?.slice('Bearer '.length)
   if (!token) return headers
-  return { ...headers, Authorization: `Bearer ${token.slice(0, 10)}…` }
+  return { ...headers, Authorization: `Bearer ${abbreviateToken(token)}` }
+}
+
+function bodyForTimeline(body: unknown): unknown {
+  if (body === null || typeof body !== 'object' || !('token' in body)) return body
+  if (typeof body.token !== 'string') return body
+  return { ...body, token: abbreviateToken(body.token) }
 }
 
 async function readBody(response: Response): Promise<unknown> {
@@ -90,7 +101,7 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
   const responseBody = await readBody(response)
   updateEntry(entryId, {
     status: response.status,
-    responseBody,
+    responseBody: bodyForTimeline(responseBody),
     durationMs: Date.now() - startedAt,
   })
 
