@@ -1,7 +1,7 @@
 # Task API — contexto do projeto
 
 Documento de passagem de contexto para continuar o desenvolvimento no Claude Code.
-Estado em 09/10/2026 (atualizado ao fim da fase 7).
+Estado em 28/10/2026 (atualizado ao fim da fase 8).
 
 ---
 
@@ -169,6 +169,16 @@ Pontos de design do schema:
 - **Swagger:** esquema `bearerAuth` global no `OpenApiConfig`; rotas públicas tiram o cadeado
   com `@SecurityRequirements` vazio. `@AuthenticationPrincipal` não aparece como parâmetro
   (o springdoc ignora). `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**` liberados.
+- **Respostas de erro no Swagger:** um `OpenApiCustomizer` no `OpenApiConfig` adiciona 401 (rotas
+  autenticadas) e 500 (todas) e troca o corpo dos erros: 400 → `ValidationErrorResponse`,
+  demais → `ErrorResponse`. Os controllers declaram só `@ApiResponse(responseCode, description)`
+  dos erros específicos (404/409/422); sem o customizer o springdoc usaria o tipo de retorno do
+  método como corpo do erro. O 400 de `?status=` inválido declara `ErrorResponse` explícito.
+- **Exemplos no Swagger:** `@Schema(example)` por campo e, em `CreateTaskRequest`,
+  `UpdateTaskRequest` e `UpdateUserRequest`, exemplo do corpo inteiro no record — sem isso o
+  "Try it out" mandaria `parentTaskId: 0` (404) e o `PUT /users/me` trocaria a senha.
+- **`@Transactional` nos services:** `readOnly = true` na classe e `@Transactional` nos métodos
+  de escrita (padrão do `TaskService` aplicado a `UserService`, `CategoryService`, `TagService`).
 
 ---
 
@@ -199,7 +209,7 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | 5 | DTOs | ✅ |
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
-| 8 | Swagger / OpenAPI | 🚧 funcional; faltam descrições e decisão sobre produção |
+| 8 | Swagger / OpenAPI | ✅ (decisão sobre produção fica para a fase 9) |
 | 9 | Deploy | ⬜ |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
 | 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
@@ -210,13 +220,12 @@ README e este documento usam a mesma numeração.
 
 ## 9. Próximo passo
 
-Fase 8 está funcional (Swagger UI com "Authorize"). Opções para seguir, a decidir:
-1. **Terminar a fase 8:** `@Tag` nos controllers ("Tarefas" em vez de "task-controller"),
-   `@Operation` com resumo por endpoint e `@Schema` com exemplos nos DTOs.
-2. **Limpeza da seção 10** (imports, `@Transactional`, typos) — pequena, dá para fazer junto.
-3. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
-   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`), e a
-   licença `LICENSE` antes de o repositório ficar em evidência.
+Fase 8 concluída (tags, resumos, exemplos e respostas de erro no Swagger) junto com a limpeza
+da seção 10. Próximo:
+1. **`LICENSE`** (MIT, citado no README) antes de o repositório ficar em evidência.
+2. **Fase 9 (deploy):** decidir plataforma, segredo `JWT_SECRET` real, desligar Swagger em
+   produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
+3. Opcional: fixar a ordem dos grupos no Swagger UI (hoje segue a ordem do springdoc).
 
 ---
 
@@ -238,20 +247,12 @@ Resolvido nesta rodada:
 
 Segurança / repositório:
 - README cita licença MIT e um arquivo `LICENSE`, mas **o arquivo não existe**. Criar.
-- Push pendente: os commits desde `c9a4d96` (fase 7, Swagger, bugs) estão só locais até o
-  próximo `git push`.
 
 Bugs / comportamento:
 - Nenhum bug conhecido em aberto. Limitação conhecida (decisão da seção 6): PUT não consegue
   limpar campo opcional (`categoryId`, `dueDate`, `description`) enviando `null`.
 
 Limpeza:
-- `TagService` ainda importa `CategoryResponse`, `UpdateCategoryRequest` e `Category` sem usar.
-- `UserService`, `CategoryService` e `TagService` não têm `@Transactional` (o `TaskService` e
-  o `AuthService` têm). Padronizar.
-- Typos em mensagens: `"ecnontrado"` (TaskService.create), `"catacteres"` (UpdateTagRequest),
-  `"unknow"` (GlobalExceptionHandler).
-- Comentário solto no fim do `TagRepository` (`// ver sobre ...bootstrap-mode`).
 - `TaskRepository.findByUserIdAndPriority` existe mas não é usado (dá para expor `?priority=`).
 - `toResponse` de `TaskService` acessa categoria e tags lazy → N+1 nas listagens. Avaliar
   `@EntityGraph` / `JOIN FETCH` mais adiante.

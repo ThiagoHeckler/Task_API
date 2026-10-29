@@ -306,7 +306,7 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 5 | DTOs | ✅ |
 | 6 | Services e controllers (CRUD completo) | ✅ |
 | 7 | Autenticação com JWT | ✅ |
-| 8 | Documentação com Swagger / OpenAPI | 🚧 |
+| 8 | Documentação com Swagger / OpenAPI | ✅ |
 | 9 | Deploy | ⬜ |
 | 10 | Testes automatizados e polimento | ⬜ |
 | 11 | Front-end de vitrine *(opcional)* | ⬜ |
