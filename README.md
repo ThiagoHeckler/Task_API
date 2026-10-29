@@ -28,6 +28,7 @@ O projeto foi construído do zero, sem geradores de código ou scaffolding, com 
 | Framework | Spring Boot 4.1.0 |
 | Persistência | Spring Data JPA + Hibernate 7.4.1 |
 | Banco de dados | PostgreSQL 18 (via Docker Compose) |
+| Migrations | Flyway |
 | Segurança | Spring Security, BCrypt, JWT (JJWT 0.12.6) |
 | Validação | Jakarta Bean Validation |
 | Build | Maven |
@@ -277,7 +278,7 @@ O Maven não precisa estar instalado: o projeto inclui o wrapper `./mvnw`.
 git clone https://github.com/ThiagoHeckler/Task_API.git
 cd Task_API
 
-# 2. Subir o PostgreSQL (o schema é aplicado automaticamente na primeira subida)
+# 2. Subir o PostgreSQL (o schema é criado pelo Flyway quando a aplicação sobe)
 docker compose up -d
 
 # 3. Criar a configuração local a partir do modelo

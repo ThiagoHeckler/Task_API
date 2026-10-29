@@ -67,7 +67,7 @@ src/main/java/com/thiago/taskapi/task_api/
 ├── repository/  UserRepository, CategoryRepository, TagRepository, TaskRepository
 └── service/     AuthService, UserService, CategoryService, TagService, TaskService
 src/main/resources/
-├── schema.sql              # aplicado pelo docker-compose na primeira subida
+├── db/migration/           # migrations do Flyway (V1__schema_inicial.sql = schema inicial)
 └── applicationExemple.yml  # modelo de configuração
 docker-compose.yml          # PostgreSQL 18 na porta 5440
 ```
@@ -78,9 +78,11 @@ Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api`
 
 ## 5. Banco de dados
 
-O **banco é a fonte da verdade**: `ddl-auto: validate`. O `schema.sql` é montado em
-`/docker-entrypoint-initdb.d/` e roda **só quando o volume está vazio** — mudou o schema,
-precisa recriar o volume (`docker compose down -v && docker compose up -d`).
+O **banco é a fonte da verdade**: `ddl-auto: validate`. O schema é versionado com **Flyway**
+(`src/main/resources/db/migration/`), aplicado quando a aplicação sobe. Mudou o schema? Nova
+migration `V{n}__descricao.sql`; **nunca editar uma migration já executada**.
+(Antes: `schema.sql` montado no `docker-entrypoint-initdb.d`, trocado em 28/10/2026 para
+alinhar com os outros projetos do portfólio na VPS.)
 
 Tabelas: `users`, `categories`, `tags`, `tasks`, `task_tags` (pivô N:N).
 
@@ -276,7 +278,7 @@ Adiado de propósito:
 docker compose up -d
 ./mvnw spring-boot:run
 
-# recriar o banco do zero (CUIDADO: apaga dados; reaplica o schema.sql)
+# recriar o banco do zero (CUIDADO: apaga dados; o Flyway reaplica as migrations ao subir a API)
 docker compose down -v && docker compose up -d
 
 # psql dentro do container
