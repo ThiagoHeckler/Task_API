@@ -28,3 +28,6 @@ Thumbs.db
 .claude-flow/
 ruvector.db
 .swarm/
+
+# Mockups do brainstorming (superpowers)
+.superpowers/
