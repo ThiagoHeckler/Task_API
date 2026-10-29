@@ -31,19 +31,23 @@ public class UserService {
 	
 	@Transactional
 	public UserResponse create(CreateUserRequest request) {
+		// BCrypt é lento (~100 ms): calcula antes do lock para não enfileirar os cadastros atrás dele.
+		String passwordHash = passwordEncoder.encode(request.password());
+
 		// A demo é pública: um teto global por dia segura abuso mesmo com IPs trocados.
+		userRepository.acquireSignupLock();
 		if (userRepository.countCreatedToday() >= dailySignupLimit) {
 			throw new SignupLimitReachedException();
 		}
-		
+
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("Email já cadastrado: " + request.email());
 		}
-		
+
 		User user = new User();
 		user.setName(request.name());
 		user.setEmail(request.email());
-		user.setPasswordHash(passwordEncoder.encode(request.password()));
+		user.setPasswordHash(passwordHash);
 		
 		User savedUser = userRepository.save(user);
 		

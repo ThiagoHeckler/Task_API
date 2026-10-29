@@ -21,6 +21,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 			""", nativeQuery = true)
 	long countCreatedToday();
 	
+	// Lock de transação do PostgreSQL: cadastros concorrentes esperam aqui, então a contagem do
+	// teto diário e o insert viram uma operação só. É liberado no commit/rollback.
+	@Query(value = "SELECT 1 FROM pg_advisory_xact_lock(hashtext('daily-signup-limit'))", nativeQuery = true)
+	int acquireSignupLock();
+	
 	// O ON DELETE CASCADE do schema leva junto tarefas, categorias e tags do usuário.
 	@Modifying
 	@Query(value = "DELETE FROM users WHERE created_at < now() - interval '24 hours'", nativeQuery = true)
