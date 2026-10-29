@@ -86,3 +86,27 @@ test('restartTypesNewTarget', () => {
   expect(result.current.values).toEqual({ a: 'xy' })
   expect(result.current.done).toBe(true)
 })
+
+test('startsFromCurrentValuesAndRetypesOnlyWhatChanges', () => {
+  const { result } = renderHook(() =>
+    useTypewriter({ name: 'Estudos', color: '#22' }, { charDelayMs: 10, from: { name: 'Estudos', color: '#11' } }),
+  )
+
+  expect(result.current.values).toEqual({ name: 'Estudos', color: '#11' })
+  tick(10)
+  // Not a prefix of the target: cleared first, then typed again.
+  expect(result.current.values).toEqual({ name: 'Estudos', color: '' })
+  typeAll()
+
+  expect(result.current.values).toEqual({ name: 'Estudos', color: '#22' })
+})
+
+test('keepsTypingAfterCurrentPrefix', () => {
+  const { result } = renderHook(() =>
+    useTypewriter({ name: 'leitura-x' }, { charDelayMs: 10, from: { name: 'leitura' } }),
+  )
+
+  tick(10)
+
+  expect(result.current.values).toEqual({ name: 'leitura-' })
+})

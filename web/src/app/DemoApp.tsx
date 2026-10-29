@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { SplitLayout } from '@/components/SplitLayout'
 import { TimelinePanel } from '@/components/timeline/TimelinePanel'
 import { Onboarding } from '@/features/onboarding/Onboarding'
+import { SystemShell } from '@/features/system/SystemShell'
 import { configureApi } from '@/lib/api'
 import { clearToken, useToken } from '@/lib/session'
 
@@ -30,9 +31,7 @@ export function DemoApp() {
   }, [queryClient])
 
   const system = token ? (
-    <main className="flex h-full items-center justify-center p-6 text-slate-500">
-      Sistema de tarefas
-    </main>
+    <SystemShell onWaitingChange={setWaiting} />
   ) : (
     <Onboarding onLoggedIn={() => setNotice(null)} onWaitingChange={setWaiting} notice={notice} />
   )

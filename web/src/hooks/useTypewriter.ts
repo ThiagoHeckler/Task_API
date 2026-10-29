@@ -4,6 +4,9 @@ type TypewriterOptions<F> = {
   charDelayMs?: number
   // Fields filled in one step when their turn comes (select, date inputs).
   instant?: (keyof F)[]
+  // Starting values (edit forms): fields already equal to the target are
+  // skipped; a field that is not a prefix of its target is cleared and retyped.
+  from?: F
 }
 
 type Typewriter<F> = {
@@ -27,7 +30,7 @@ export function useTypewriter<F extends Record<string, string>>(
   const charDelayMs = opts.charDelayMs ?? 25
   const [instant] = useState(() => new Set(opts.instant ?? []))
   const [target, setTarget] = useState(initialTarget)
-  const [values, setValues] = useState(() => emptyLike(initialTarget))
+  const [values, setValues] = useState(() => opts.from ?? emptyLike(initialTarget))
   const [stopped, setStopped] = useState(false)
 
   const nextField = (Object.keys(target) as (keyof F)[]).find((key) => values[key] !== target[key])
@@ -38,7 +41,11 @@ export function useTypewriter<F extends Record<string, string>>(
     const timer = setTimeout(() => {
       setValues((prev) => {
         const full = target[nextField]
-        const next = instant.has(nextField) ? full : full.slice(0, prev[nextField].length + 1)
+        const current = prev[nextField]
+        let next: string
+        if (instant.has(nextField)) next = full
+        else if (!full.startsWith(current)) next = ''
+        else next = full.slice(0, current.length + 1)
         return { ...prev, [nextField]: next }
       })
     }, charDelayMs)
