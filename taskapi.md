@@ -185,6 +185,26 @@ Pontos de design do schema:
   campos e manda `parentTaskId: 0` / `tagIds: [1]` (404 para usuário novo) e, no `PUT /users/me`,
   troca email e senha.
 
+Proteções da demo pública (28/10/2026, design em `docs/superpowers/specs/2026-10-28-demo-tela-dividida-design.md`):
+- **Toda conta é de demonstração.** `DemoAccountCleanup` roda de hora em hora e apaga usuários com
+  mais de 24 h (`UserRepository.deleteOlderThan24Hours`); o `ON DELETE CASCADE` leva o resto.
+- **Teto global de cadastros por dia** (`DEMO_SIGNUP_DAILY_LIMIT`, padrão 100), independente de IP.
+  O "hoje" é o de São Paulo e é calculado no PostgreSQL (`countCreatedToday`), não na JVM: o
+  container roda em UTC e o dia viraria às 21h. Ao atingir: `429`, mensagem exata
+  `SignupLimitReachedException.MESSAGE` ("Limite de usuários que testaram o sistema hoje
+  atingido") e `Retry-After` até a meia-noite. **O front identifica o bloqueio do dia por essa
+  mensagem** em `POST /users`.
+- **Limite por IP** (`RateLimitFilter`, `DEMO_RATE_LIMIT_PER_MINUTE`, padrão 120/min, janela fixa
+  em memória). `429` com "Muitas requisições. Aguarde um minuto e tente novamente." e
+  `Retry-After` até o fim do minuto. `/swagger-ui/**` (estáticos) fica fora do limite; abrir o
+  Swagger já baixa vários arquivos. Criado no `SecurityConfig`, não como `@Component`, para não
+  ser registrado duas vezes.
+- **Atrás do proxy:** `server.forward-headers-strategy: framework` — IP do cliente vem do
+  `X-Forwarded-For` e o prefixo `/api` do `X-Forwarded-Prefix` (Swagger gera URLs com `/api`).
+  **Requisito do deploy:** a porta da API não pode ser publicada e o Caddy precisa sobrescrever
+  `X-Forwarded-For` (`header_up X-Forwarded-For {remote_host}`), senão o limite por IP é burlável.
+- **Schema com Flyway** (`db/migration/V1__schema_inicial.sql`), alinhado com o portfólio.
+
 ---
 
 ## 7. Endpoints atuais
@@ -201,6 +221,9 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | Tags | `POST/GET /tags`, `GET/PUT/DELETE /tags/{id}` |
 | Tarefas | `POST/GET /tasks` (`?status=` opcional), `GET /tasks/root`, `GET/PUT/DELETE /tasks/{id}` |
 
+Qualquer rota pode devolver `429` (limite por IP); `POST /users` também devolve `429` quando o
+teto diário de cadastros é atingido.
+
 ---
 
 ## 8. Fases
@@ -215,9 +238,9 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
 | 8 | Swagger / OpenAPI | ✅ (ligar ou não em produção fica para a fase 9) |
-| 9 | Deploy | ⬜ |
+| 9 | Deploy (junto com a demo da fase 11) | 🚧 parte 1 (API pronta para produção) ✅; deploy na VPS pendente |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
-| 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
+| 11 | Front-end de vitrine: demo com tela dividida (antecipada, vai junto com o deploy) | ⬜ |
 
 README e este documento usam a mesma numeração.
 
@@ -225,8 +248,12 @@ README e este documento usam a mesma numeração.
 
 ## 9. Próximo passo
 
-**Fase 9 (deploy)**, a decidir: plataforma, segredo `JWT_SECRET` real, desligar Swagger em
-produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
+Demo com tela dividida + deploy (spec `docs/superpowers/specs/2026-10-28-demo-tela-dividida-design.md`):
+1. ~~Parte 1 — API~~ ✅ (plano `docs/superpowers/plans/2026-10-28-demo-parte1-api.md`): Flyway,
+   teto diário, limite por IP, limpeza das contas, forwarded headers.
+2. **Parte 2 — front Next.js** em `web/` (export estático): plano a escrever.
+3. **Parte 3 — deploy** em `tasks.thiagoheckler.com.br` (VPS Hostinger, repo `Portfolio`, Caddy,
+   PostgreSQL 17): plano a escrever. Swagger fica ligado em produção.
 
 ---
 
@@ -277,6 +304,9 @@ Adiado de propósito:
 # subir o banco e a aplicação
 docker compose up -d
 ./mvnw spring-boot:run
+
+# testar os limites da demo com valores baixos
+DEMO_SIGNUP_DAILY_LIMIT=2 DEMO_RATE_LIMIT_PER_MINUTE=10 ./mvnw spring-boot:run
 
 # recriar o banco do zero (CUIDADO: apaga dados; o Flyway reaplica as migrations ao subir a API)
 docker compose down -v && docker compose up -d

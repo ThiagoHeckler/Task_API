@@ -118,6 +118,10 @@ Esta seção existe porque o "porquê" costuma valer mais do que o código em si
 
 **Erros de segurança no mesmo formato dos demais.** O 401 e o 403 acontecem nos filtros, antes de a requisição chegar ao controller, onde o `@RestControllerAdvice` não alcança. Por isso um `AuthenticationEntryPoint` e um `AccessDeniedHandler` próprios escrevem o mesmo JSON de `ErrorResponse`.
 
+**Proteções para uma demo pública.** Toda conta é temporária: um job agendado apaga as contas com mais de 24 horas, e o `ON DELETE CASCADE` leva tarefas, categorias e tags junto. Há um teto global de cadastros por dia (o "dia" é o de São Paulo, calculado no próprio PostgreSQL para não depender do fuso do servidor) e um limite de requisições por minuto por IP; os dois respondem `429` com `Retry-After`. Atrás do proxy reverso, a API lê o IP real do visitante do `X-Forwarded-For` e o prefixo `/api` do `X-Forwarded-Prefix`.
+
+**Schema versionado com Flyway.** As mudanças no banco entram como migrations (`src/main/resources/db/migration`), e o Hibernate só valida o schema (`ddl-auto: validate`).
+
 **Sem refresh token (limitação consciente).** O token expira em 1 hora e o cliente precisa logar de novo. O filtro também não consulta o banco a cada requisição, então o token de um usuário excluído continua válido até expirar — as operações dele passam a devolver 404.
 
 ---
@@ -290,6 +294,14 @@ cp src/main/resources/applicationExemple.yml src/main/resources/application.yml
 
 A API sobe em `http://localhost:8081` e o banco fica em `localhost:5440`.
 
+Variáveis de ambiente opcionais:
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `JWT_SECRET` | chave de desenvolvimento | segredo de assinatura do JWT (obrigatório trocar em produção) |
+| `DEMO_SIGNUP_DAILY_LIMIT` | `100` | cadastros permitidos por dia (fuso de São Paulo) |
+| `DEMO_RATE_LIMIT_PER_MINUTE` | `120` | requisições por minuto por IP |
+
 As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis de ambiente `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O segredo precisa ter no mínimo 32 caracteres; o valor padrão do `applicationExemple.yml` serve apenas para desenvolvimento.
 
 Para recomeçar com o banco vazio: `docker compose down -v && docker compose up -d`.
@@ -308,9 +320,9 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 6 | Services e controllers (CRUD completo) | ✅ |
 | 7 | Autenticação com JWT | ✅ |
 | 8 | Documentação com Swagger / OpenAPI | ✅ |
-| 9 | Deploy | ⬜ |
+| 9 | Deploy | 🚧 |
 | 10 | Testes automatizados e polimento | ⬜ |
-| 11 | Front-end de vitrine *(opcional)* | ⬜ |
+| 11 | Demo com tela dividida (sistema + chamadas da API em tempo real) | ⬜ |
 
 ---
 
