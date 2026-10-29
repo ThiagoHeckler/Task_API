@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+// Exemplo do corpo inteiro: o "Try it out" só envia campos que funcionam para um usuário novo.
+@Schema(example = "{\"status\": \"IN_PROGRESS\"}")
 public record UpdateTaskRequest(
 	// null = não alterar; por isso @Pattern em vez de @NotBlank (que recusaria o null).
 	@Schema(example = "Estudar JWT e refresh token")

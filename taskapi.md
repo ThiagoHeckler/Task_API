@@ -178,6 +178,10 @@ Pontos de design do schema:
   ficam de fora. O `/auth/login` declara o próprio 401 (credenciais inválidas).
 - **`springdoc.default-produces-media-type: application/json`** — sem isso as respostas
   aparecem como `*/*` no Swagger. Precisa estar também no `application.yml` local.
+- **Exemplo do corpo inteiro** (`@Schema(example)` no record) em `CreateTaskRequest`,
+  `UpdateTaskRequest` e `UpdateUserRequest`: sem isso o "Try it out" monta o JSON com todos os
+  campos e manda `parentTaskId: 0` / `tagIds: [1]` (404 para usuário novo) e, no `PUT /users/me`,
+  troca email e senha.
 
 ---
 

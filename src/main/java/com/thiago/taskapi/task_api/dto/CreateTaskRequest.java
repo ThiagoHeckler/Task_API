@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+// Exemplo do corpo inteiro: o "Try it out" só envia campos que funcionam para um usuário novo.
+@Schema(example = "{\"title\": \"Estudar JWT\", \"description\": \"Ler a documentação do JJWT e testar a geração de tokens\", \"priority\": \"HIGH\", \"dueDate\": \"2026-11-30T18:00:00\"}")
 public record CreateTaskRequest(
 	@Schema(example = "Estudar JWT")
 	@NotBlank(message = "O título é obrigatório")
