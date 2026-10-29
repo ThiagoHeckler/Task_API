@@ -21,6 +21,8 @@ spring:
 
 server:
   port: 8081
+  # Atrás do Caddy: usa X-Forwarded-For como IP do cliente e X-Forwarded-Prefix (/api) nas URLs.
+  forward-headers-strategy: framework
 
 jwt:
   secret: ${JWT_SECRET:desenvolvimento-local-chave-de-no-minimo-32-caracteres-nao-usar-em-producao}
@@ -33,3 +35,6 @@ demo:
   signup:
     # Teto global de cadastros por dia (fuso America/Sao_Paulo); protege a demo pública.
     daily-limit: ${DEMO_SIGNUP_DAILY_LIMIT:100}
+  rate-limit:
+    # Requisições por minuto por IP (o Swagger UI estático fica de fora).
+    requests-per-minute: ${DEMO_RATE_LIMIT_PER_MINUTE:120}

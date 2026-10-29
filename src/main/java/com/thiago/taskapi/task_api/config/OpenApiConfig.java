@@ -56,6 +56,15 @@ public class OpenApiConfig {
 			openApi.getPaths().values().forEach(path -> path.readOperations().stream()
 					.filter(operation -> operation.getSecurity() == null)
 					.forEach(operation -> operation.getResponses().addApiResponse("401", unauthorized)));
+
+			// O limite por IP (RateLimitFilter) vale para toda operação.
+			ApiResponse tooManyRequests = new ApiResponse()
+					.description("Limite de requisições por minuto excedido")
+					.content(new Content().addMediaType("application/json", new MediaType()
+							.schema(new Schema<>().$ref("#/components/schemas/ErrorResponse"))));
+
+			openApi.getPaths().values().forEach(path -> path.readOperations()
+					.forEach(operation -> operation.getResponses().putIfAbsent("429", tooManyRequests)));
 		};
 	}
 }
