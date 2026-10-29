@@ -41,6 +41,17 @@ class ForwardedHeadersTest {
 		login("10.0.0.1").andExpect(status().isTooManyRequests());
 	}
 
+	// Atrás do Caddy o contextPath vira /api; a exclusão do Swagger estático precisa continuar valendo.
+	@Test
+	void swaggerStaticAssetsBehindPrefix_areNotLimited() throws Exception {
+		for (int i = 0; i < 3; i++) {
+			mockMvc.perform(get("/swagger-ui/index.html")
+							.header("X-Forwarded-Prefix", "/api")
+							.header("X-Forwarded-For", "10.0.0.3"))
+					.andExpect(status().is(not(429)));
+		}
+	}
+
 	// Corpo inválido de propósito: só interessa se a requisição passou ou não pelo limite.
 	private ResultActions login(String clientIp) throws Exception {
 		return mockMvc.perform(post("/auth/login")

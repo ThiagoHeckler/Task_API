@@ -204,6 +204,11 @@ Proteções da demo pública (28/10/2026, design em `docs/superpowers/specs/2026
   **Requisito do deploy:** a porta da API não pode ser publicada e o Caddy precisa sobrescrever
   `X-Forwarded-For` (`header_up X-Forwarded-For {remote_host}`), senão o limite por IP é burlável.
 - **Schema com Flyway** (`db/migration/V1__schema_inicial.sql`), alinhado com o portfólio.
+- **Fuso único UTC** (`TaskApiApplication`, bloco estático com `TimeZone.setDefault`): o driver
+  JDBC usa o fuso da JVM na sessão do PostgreSQL, e `created_at`/`updated_at` são `TIMESTAMP` sem
+  fuso preenchidos pelo `now()` da sessão. Sem isso, dev (São Paulo) e container (UTC) gravariam
+  horas diferentes. Consequência: **as datas da API saem em UTC, sem offset** (ex.:
+  `2026-10-29T02:10:25`); o front trata como UTC e converte para exibir.
 
 ---
 
