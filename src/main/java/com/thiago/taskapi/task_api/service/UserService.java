@@ -1,5 +1,6 @@
 package com.thiago.taskapi.task_api.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,6 +10,7 @@ import com.thiago.taskapi.task_api.dto.UpdateUserRequest;
 import com.thiago.taskapi.task_api.dto.UserResponse;
 import com.thiago.taskapi.task_api.exception.DuplicateResourceException;
 import com.thiago.taskapi.task_api.exception.ResourceNotFoundException;
+import com.thiago.taskapi.task_api.exception.SignupLimitReachedException;
 import com.thiago.taskapi.task_api.model.User;
 import com.thiago.taskapi.task_api.repository.UserRepository;
 
@@ -18,14 +20,22 @@ public class UserService {
 	
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final int dailySignupLimit;
 	
-	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+	public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+			@Value("${demo.signup.daily-limit}") int dailySignupLimit) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
+		this.dailySignupLimit = dailySignupLimit;
 	}
 	
 	@Transactional
 	public UserResponse create(CreateUserRequest request) {
+		// A demo é pública: um teto global por dia segura abuso mesmo com IPs trocados.
+		if (userRepository.countCreatedToday() >= dailySignupLimit) {
+			throw new SignupLimitReachedException();
+		}
+		
 		if (userRepository.existsByEmail(request.email())) {
 			throw new DuplicateResourceException("Email já cadastrado: " + request.email());
 		}

@@ -45,6 +45,8 @@ public class UserController {
 			content = @Content(schema = @Schema(implementation = ValidationErrorResponse.class)))
 	@ApiResponse(responseCode = "409", description = "Email já cadastrado",
 			content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+	@ApiResponse(responseCode = "429", description = "Limite diário de cadastros da demo atingido",
+			content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
 	@PostMapping
 	public ResponseEntity<UserResponse> create(@Valid @RequestBody CreateUserRequest request){
 		UserResponse response = userService.create(request);

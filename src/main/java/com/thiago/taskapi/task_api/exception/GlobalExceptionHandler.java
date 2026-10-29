@@ -1,12 +1,17 @@
 package com.thiago.taskapi.task_api.exception;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -79,6 +84,23 @@ public class GlobalExceptionHandler {
 				ex.getMessage()
 		);
 		return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(error);
+	}
+	
+	// Retry-After aponta para a meia-noite de São Paulo, quando o teto diário zera.
+	@ExceptionHandler(SignupLimitReachedException.class)
+	public ResponseEntity<ErrorResponse> handleSignupLimit(SignupLimitReachedException ex){
+		ErrorResponse error = new ErrorResponse(
+				Instant.now(),
+				HttpStatus.TOO_MANY_REQUESTS.value(),
+				HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+				ex.getMessage()
+		);
+		ZoneId saoPaulo = ZoneId.of("America/Sao_Paulo");
+		ZonedDateTime nextMidnight = LocalDate.now(saoPaulo).plusDays(1).atStartOfDay(saoPaulo);
+		long secondsUntilReset = Duration.between(Instant.now(), nextMidnight.toInstant()).toSeconds();
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.header(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(secondsUntilReset, 1)))
+				.body(error);
 	}
 	
 	// Rede de segurança para violações que escaparam das checagens do service

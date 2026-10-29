@@ -3,6 +3,7 @@ package com.thiago.taskapi.task_api.repository;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import com.thiago.taskapi.task_api.model.User;
 
@@ -11,4 +12,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<User> findByEmail(String email);
 	
 	boolean existsByEmail(String Email);
+	
+	// O "hoje" é o de São Paulo, calculado pelo próprio PostgreSQL para não depender do fuso da JVM.
+	@Query(value = """
+			SELECT count(*) FROM users
+			WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'America/Sao_Paulo'
+			""", nativeQuery = true)
+	long countCreatedToday();
 }

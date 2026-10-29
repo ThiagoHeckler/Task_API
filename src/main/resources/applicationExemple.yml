@@ -28,3 +28,8 @@ jwt:
 
 springdoc:
   default-produces-media-type: application/json
+
+demo:
+  signup:
+    # Teto global de cadastros por dia (fuso America/Sao_Paulo); protege a demo pública.
+    daily-limit: ${DEMO_SIGNUP_DAILY_LIMIT:100}
