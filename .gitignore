@@ -23,3 +23,7 @@ Thumbs.db
 *.log
 .env
 *application.yml 
+
+# Ferramentas de IA (ruflo)
+.claude-flow/
+ruvector.db
