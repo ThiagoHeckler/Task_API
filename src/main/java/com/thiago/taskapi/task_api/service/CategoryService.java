@@ -4,6 +4,7 @@ package com.thiago.taskapi.task_api.service;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.thiago.taskapi.task_api.dto.CategoryResponse;
 import com.thiago.taskapi.task_api.dto.CreateCategoryRequest;
@@ -16,6 +17,7 @@ import com.thiago.taskapi.task_api.repository.CategoryRepository;
 import com.thiago.taskapi.task_api.repository.UserRepository;
 
 @Service
+@Transactional(readOnly = true)
 public class CategoryService {
 	
 	private final CategoryRepository categoryRepository;
@@ -26,6 +28,7 @@ public class CategoryService {
 		this.userRepository = userRepository;
 	}
 	
+	@Transactional
 	public CategoryResponse create(Long userId, CreateCategoryRequest request) {
 		User user = userRepository.findById(userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com id: " + userId));
@@ -65,6 +68,7 @@ public class CategoryService {
 		);
 	}
 	
+	@Transactional
 	public CategoryResponse update(Long id, Long userId, UpdateCategoryRequest request) {
 		Category category = categoryRepository.findByIdAndUserId(id, userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
@@ -83,6 +87,7 @@ public class CategoryService {
 		return toResponse(categoryRepository.save(category));
 	}
 	
+	@Transactional
 	public void delete(Long id, Long userId) {
 		Category category = categoryRepository.findByIdAndUserId(id, userId)
 				.orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));

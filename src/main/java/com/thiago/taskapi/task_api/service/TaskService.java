@@ -45,7 +45,7 @@ public class TaskService {
   @Transactional
   public TaskResponse create(Long userId, CreateTaskRequest request) {
 	  User user = userRepository.findById(userId)
-			  .orElseThrow(() -> new ResourceNotFoundException("Usuário não ecnontrado com id: " + userId));
+			  .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com id: " + userId));
 	  
 	  Task task = new Task();
 	  task.setUser(user);

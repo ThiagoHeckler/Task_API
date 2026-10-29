@@ -16,4 +16,3 @@ public interface TagRepository extends JpaRepository<Tag, Long>{
 	boolean existsByNameAndUserId(String name, Long userId);
 	
 }
-// ver sobre spring.data.jpa.repositories.bootstrap-mode
