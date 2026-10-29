@@ -27,3 +27,4 @@ Thumbs.db
 # Ferramentas de IA (ruflo)
 .claude-flow/
 ruvector.db
+.swarm/
