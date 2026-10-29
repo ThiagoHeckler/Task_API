@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.thiago.taskapi.task_api.model.Task;
 import com.thiago.taskapi.task_api.model.User;
 
 // Roda contra o PostgreSQL local; cada teste é desfeito pelo rollback do @Transactional.
@@ -25,6 +26,9 @@ class UserRepositoryTest {
 
 	@Autowired
 	UserRepository userRepository;
+
+	@Autowired
+	TaskRepository taskRepository;
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
@@ -49,6 +53,29 @@ class UserRepositoryTest {
 
 		// Só o de 00:01 (horário de SP) entra na contagem de hoje.
 		assertThat(userRepository.countCreatedToday()).isEqualTo(before + 1);
+	}
+
+	@Test
+	void deleteOlderThan24Hours_removesOnlyOldUsersAndCascades() {
+		User old = userRepository.saveAndFlush(newUser("velho@teste.com"));
+		User recent = userRepository.saveAndFlush(newUser("recente@teste.com"));
+		Task task = new Task();
+		task.setTitle("Tarefa do usuário velho");
+		task.setUser(old);
+		taskRepository.saveAndFlush(task);
+		jdbcTemplate.update("UPDATE users SET created_at = now() - interval '25 hours' WHERE id = ?", old.getId());
+		jdbcTemplate.update("UPDATE users SET created_at = now() - interval '1 hour' WHERE id = ?", recent.getId());
+
+		int deleted = userRepository.deleteOlderThan24Hours();
+
+		assertThat(deleted).isGreaterThanOrEqualTo(1);
+		assertThat(count("SELECT count(*) FROM users WHERE id = ?", old.getId())).isZero();
+		assertThat(count("SELECT count(*) FROM users WHERE id = ?", recent.getId())).isEqualTo(1);
+		assertThat(count("SELECT count(*) FROM tasks WHERE user_id = ?", old.getId())).isZero();
+	}
+
+	private Integer count(String sql, Long id) {
+		return jdbcTemplate.queryForObject(sql, Integer.class, id);
 	}
 
 	private User newUser(String email) {
