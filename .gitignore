@@ -31,3 +31,6 @@ ruvector.db
 
 # Mockups do brainstorming (superpowers)
 .superpowers/
+
+# Playwright MCP screenshots and snapshots
+.playwright-mcp/
