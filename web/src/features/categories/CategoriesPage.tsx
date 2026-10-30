@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { nextColor, nextPreset, CATEGORY_PRESETS } from '@/features/presets'
 import { ErrorMessage, ItemActions, NO_ERRORS, SectionHeader, toFormErrors } from '@/features/system/ui'
+import { TASKS_KEY } from '@/features/tasks/api'
 import type { CategoryResponse } from '@/lib/types'
 import {
   CATEGORIES_KEY,
@@ -29,7 +30,12 @@ export function CategoriesPage({ onWaitingChange }: CategoriesPageProps) {
   const [formKey, setFormKey] = useState(0)
 
   // Every mutation is followed by a real GET of the list (visible in the timeline).
-  const refreshList = () => queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY })
+  // Tasks embed categories and tags, so their cached lists are marked stale too:
+  // the GET goes out when the visitor opens Tarefas again.
+  const refreshList = () => {
+    queryClient.invalidateQueries({ queryKey: TASKS_KEY })
+    return queryClient.invalidateQueries({ queryKey: CATEGORIES_KEY })
+  }
 
   const save = useMutation({
     mutationFn: (input: CategoryInput) =>

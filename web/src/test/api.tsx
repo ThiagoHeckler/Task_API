@@ -39,11 +39,14 @@ export function bodyOf(fetchMock: ReturnType<typeof stubApi>, request: string): 
   return JSON.parse(fetchMock.mock.calls[index][1]?.body as string)
 }
 
-export function renderWithQueryClient(ui: ReactElement) {
-  const queryClient = new QueryClient({
+export function renderWithQueryClient(ui: ReactElement, queryClient = createTestQueryClient()) {
+  return { queryClient, ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>) }
+}
+
+export function createTestQueryClient() {
+  return new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
 // Long presets type for seconds in real time. Fake timers, advanced one tick

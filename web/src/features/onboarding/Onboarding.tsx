@@ -27,6 +27,9 @@ export function Onboarding({ onLoggedIn, onWaitingChange, notice }: OnboardingPr
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [warning, setWarning] = useState<string | null>(null)
   const [lockMessage, setLockMessage] = useState<string | null>(null)
+  // Set once POST /users succeeds: if the login then fails (429 per IP,
+  // network), trying again must not create the same account (409).
+  const [accountCreated, setAccountCreated] = useState(false)
 
   const waiting = !submitting && lockMessage === null
   useEffect(() => {
@@ -40,7 +43,10 @@ export function Onboarding({ onLoggedIn, onWaitingChange, notice }: OnboardingPr
     setFieldErrors({})
     setWarning(null)
     try {
-      await api<UserResponse>('POST', '/users', values)
+      if (!accountCreated) {
+        await api<UserResponse>('POST', '/users', values)
+        setAccountCreated(true)
+      }
       const login = await api<LoginResponse>('POST', '/auth/login', {
         email: values.email,
         password: values.password,
@@ -87,6 +93,7 @@ export function Onboarding({ onLoggedIn, onWaitingChange, notice }: OnboardingPr
               autoComplete="off"
               value={values[key]}
               onChange={(event) => setValue(key, event.target.value)}
+              readOnly={accountCreated}
               aria-invalid={error ? true : undefined}
               aria-describedby={error ? `onboarding-${key}-error` : undefined}
               className="rounded-md border border-slate-300 px-3 py-2 text-slate-900 focus:border-indigo-600 focus:outline-none"

@@ -153,3 +153,26 @@ test('showsFieldErrorsOn400', async () => {
   expect(await screen.findByText('Email inválido')).toBeInTheDocument()
   expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true')
 })
+
+test('retryAfterFailedLoginOnlyLogsIn', async () => {
+  const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>()
+  fetchMock
+    .mockResolvedValueOnce(
+      jsonResponse(201, { id: 1, name: 'V', email: 'v@x', createdAt: '2026-10-29T12:00:00' }),
+    )
+    .mockResolvedValueOnce(jsonResponse(429, { status: 429, error: 'Too Many Requests', message: IP_LIMIT }))
+    .mockResolvedValueOnce(jsonResponse(200, { token: 'jwt-token-123', type: 'Bearer', expiresIn: 3600 }))
+  vi.stubGlobal('fetch', fetchMock)
+  const { onLoggedIn } = renderOnboarding()
+
+  clickCreate()
+  await screen.findByText(IP_LIMIT)
+  clickCreate()
+
+  await waitFor(() => expect(onLoggedIn).toHaveBeenCalledTimes(1))
+  expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+    '/api/users',
+    '/api/auth/login',
+    '/api/auth/login',
+  ])
+})

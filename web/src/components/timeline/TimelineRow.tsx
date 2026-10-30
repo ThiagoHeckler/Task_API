@@ -1,4 +1,5 @@
 import type { TimelineEntry } from '@/lib/timeline'
+import { isLoginSuccess } from './isLoginSuccess'
 
 const METHOD_STYLES: Record<TimelineEntry['method'], string> = {
   POST: 'bg-green-600',
@@ -61,7 +62,14 @@ export function TimelineRow({ entry, expanded, onToggle }: TimelineRowProps) {
           </div>
           <div>
             <p className="mb-1 text-slate-400">Response</p>
-            <pre className="overflow-x-auto rounded bg-slate-950 p-3">
+            {isLoginSuccess(entry) && (
+              <p className="mb-1 font-bold text-indigo-300">Token JWT gerado</p>
+            )}
+            <pre
+              className={`overflow-x-auto rounded bg-slate-950 p-3 ${
+                isLoginSuccess(entry) ? 'ring-2 ring-indigo-400' : ''
+              }`}
+            >
               {entry.status === null ? '…' : toJson(entry.responseBody)}
             </pre>
           </div>

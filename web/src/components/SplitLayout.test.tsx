@@ -69,3 +69,29 @@ test('countsNewCallsWhileApiTabHidden', async () => {
 
   expect(screen.getByRole('tab', { name: 'API' })).toBeInTheDocument()
 })
+
+test('keepsSystemStateWhenCrossingBreakpoint', async () => {
+  let wide = false
+  const listeners = new Set<() => void>()
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      get matches() {
+        return wide
+      },
+      media: query,
+      addEventListener: (_: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
+    })),
+  )
+  render(<SplitLayout system={<input aria-label="campo" />} api={<p>api</p>} />)
+  await userEvent.type(screen.getByLabelText('campo'), 'digitado')
+
+  act(() => {
+    wide = true
+    listeners.forEach((listener) => listener())
+  })
+
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('campo')).toHaveValue('digitado')
+})

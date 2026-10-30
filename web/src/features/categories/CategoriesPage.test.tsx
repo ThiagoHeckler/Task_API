@@ -2,7 +2,15 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { clearTimeline } from '@/lib/timeline'
-import { bodyOf, jsonResponse, noContent, renderWithQueryClient, requestsOf, stubApi } from '@/test/api'
+import {
+  bodyOf,
+  createTestQueryClient,
+  jsonResponse,
+  noContent,
+  renderWithQueryClient,
+  requestsOf,
+  stubApi,
+} from '@/test/api'
 import { CategoriesPage } from './CategoriesPage'
 
 const WORK = { id: 1, name: 'Trabalho', color: '#0ea5e9' }
@@ -112,4 +120,23 @@ test('deletesAfterConfirmation', async () => {
     ]),
   )
   await waitFor(() => expect(screen.queryByText('Trabalho')).not.toBeInTheDocument())
+})
+
+test('deletingCategoryMarksTasksStale', async () => {
+  stubApi({
+    'GET /api/categories': [() => jsonResponse(200, [WORK]), () => jsonResponse(200, [])],
+    'DELETE /api/categories/1': noContent,
+  })
+  const queryClient = createTestQueryClient()
+  // Tasks embed their category: the cached list must not keep showing it.
+  queryClient.setQueryData(['tasks', 'all'], [{ id: 9, category: WORK }])
+  renderWithQueryClient(<CategoriesPage onWaitingChange={() => {}} />, queryClient)
+  await screen.findByText('Trabalho')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Excluir Trabalho' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }))
+
+  await waitFor(() =>
+    expect(queryClient.getQueryState(['tasks', 'all'])?.isInvalidated).toBe(true),
+  )
 })

@@ -2,7 +2,14 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { clearTimeline } from '@/lib/timeline'
-import { bodyOf, jsonResponse, renderWithQueryClient, requestsOf, stubApi } from '@/test/api'
+import {
+  bodyOf,
+  createTestQueryClient,
+  jsonResponse,
+  renderWithQueryClient,
+  requestsOf,
+  stubApi,
+} from '@/test/api'
 import { TagsPage } from './TagsPage'
 
 afterEach(() => {
@@ -53,4 +60,23 @@ test('editsTag', async () => {
   )
   expect(bodyOf(fetchMock, 'PUT /api/tags/3')).toEqual({ name: 'leitura-editada' })
   expect(await screen.findByText('leitura-editada')).toBeInTheDocument()
+})
+
+test('editingTagMarksTasksStale', async () => {
+  const edited = { id: 3, name: 'leitura-editada' }
+  stubApi({
+    'GET /api/tags': [() => jsonResponse(200, [{ id: 3, name: 'leitura' }]), () => jsonResponse(200, [edited])],
+    'PUT /api/tags/3': () => jsonResponse(200, edited),
+  })
+  const queryClient = createTestQueryClient()
+  queryClient.setQueryData(['tasks', 'all'], [{ id: 9, tags: [{ id: 3, name: 'leitura' }] }])
+  renderWithQueryClient(<TagsPage onWaitingChange={() => {}} />, queryClient)
+  await screen.findByText('leitura')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Editar leitura' }))
+  await waitForTypingThenSave()
+
+  await waitFor(() =>
+    expect(queryClient.getQueryState(['tasks', 'all'])?.isInvalidated).toBe(true),
+  )
 })

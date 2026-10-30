@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { editedTagName, nextPreset, TAG_PRESETS } from '@/features/presets'
 import { ErrorMessage, ItemActions, NO_ERRORS, SectionHeader, toFormErrors } from '@/features/system/ui'
+import { TASKS_KEY } from '@/features/tasks/api'
 import type { TagResponse } from '@/lib/types'
 import { createTag, deleteTag, listTags, TAGS_KEY, updateTag, type TagInput } from './api'
 import { TagForm } from './TagForm'
@@ -22,7 +23,12 @@ export function TagsPage({ onWaitingChange }: TagsPageProps) {
   const [formKey, setFormKey] = useState(0)
 
   // Every mutation is followed by a real GET of the list (visible in the timeline).
-  const refreshList = () => queryClient.invalidateQueries({ queryKey: TAGS_KEY })
+  // Tasks embed categories and tags, so their cached lists are marked stale too:
+  // the GET goes out when the visitor opens Tarefas again.
+  const refreshList = () => {
+    queryClient.invalidateQueries({ queryKey: TASKS_KEY })
+    return queryClient.invalidateQueries({ queryKey: TAGS_KEY })
+  }
 
   const save = useMutation({
     mutationFn: (input: TagInput) =>

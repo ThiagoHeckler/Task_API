@@ -40,18 +40,11 @@ export function SplitLayout({ system, api }: SplitLayoutProps) {
   if (apiVisible && seenId !== newestId) setSeenId(newestId)
   const unseen = apiVisible ? 0 : timeline.filter((entry) => entry.id > seenId).length
 
-  if (isWide) {
-    return (
-      <div className="grid min-h-0 flex-1 grid-cols-2">
-        <section className="min-h-0 overflow-y-auto">{system}</section>
-        <section className="min-h-0 overflow-y-auto">{api}</section>
-      </div>
-    )
-  }
-
+  // One tree for both layouts: crossing 768 px (rotating a phone, resizing)
+  // only changes classes and `hidden`, so nothing on either side remounts.
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" className="flex border-b border-slate-200 bg-white">
+    <div className={`min-h-0 flex-1 ${isWide ? 'grid grid-cols-2' : 'flex flex-col'}`}>
+      <div role="tablist" hidden={isWide} className="flex border-b border-slate-200 bg-white">
         <TabButton id="system" active={tab === 'system'} onSelect={setTab}>
           Sistema
         </TabButton>
@@ -69,19 +62,19 @@ export function SplitLayout({ system, api }: SplitLayoutProps) {
       </div>
       {/* Both panels stay mounted so the system side keeps what was typed. */}
       <section
-        role="tabpanel"
+        role={isWide ? undefined : 'tabpanel'}
         id="panel-system"
-        aria-labelledby="tab-system"
-        hidden={tab !== 'system'}
+        aria-labelledby={isWide ? undefined : 'tab-system'}
+        hidden={!isWide && tab !== 'system'}
         className="min-h-0 flex-1 overflow-y-auto"
       >
         {system}
       </section>
       <section
-        role="tabpanel"
+        role={isWide ? undefined : 'tabpanel'}
         id="panel-api"
-        aria-labelledby="tab-api"
-        hidden={tab !== 'api'}
+        aria-labelledby={isWide ? undefined : 'tab-api'}
+        hidden={!isWide && tab !== 'api'}
         className="min-h-0 flex-1 overflow-y-auto"
       >
         {api}

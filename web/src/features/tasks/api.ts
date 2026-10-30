@@ -13,7 +13,7 @@ export function tasksKey(filter: TaskFilter) {
 export type CreateTaskInput = {
   title: string
   description?: string
-  priority: TaskPriority
+  priority?: TaskPriority
   dueDate?: string
   categoryId?: number
   tagIds?: number[]

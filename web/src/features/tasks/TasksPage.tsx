@@ -37,9 +37,11 @@ function toFormValues(task: TaskResponse): TaskFormValues {
   }
 }
 
-// Empty fields are left out, so the API applies its own defaults.
+// Empty fields are left out, so the API applies its own defaults (an empty
+// priority would not even parse: the API answers 400 "Malformed JSON").
 function toCreateInput(values: TaskFormValues): CreateTaskInput {
-  const input: CreateTaskInput = { title: values.title, priority: values.priority as TaskPriority }
+  const input: CreateTaskInput = { title: values.title }
+  if (values.priority) input.priority = values.priority as TaskPriority
   if (values.description) input.description = values.description
   if (values.dueDate) input.dueDate = toApiDateTime(values.dueDate)
   if (values.categoryId) input.categoryId = Number(values.categoryId)
@@ -53,7 +55,9 @@ function toUpdateInput(values: TaskFormValues, original: TaskFormValues): Update
   const input: UpdateTaskInput = {}
   if (values.title !== original.title) input.title = values.title
   if (values.description !== original.description) input.description = values.description
-  if (values.priority !== original.priority) input.priority = values.priority as TaskPriority
+  if (values.priority && values.priority !== original.priority) {
+    input.priority = values.priority as TaskPriority
+  }
   if (values.dueDate && values.dueDate !== original.dueDate) {
     input.dueDate = toApiDateTime(values.dueDate)
   }
@@ -154,6 +158,13 @@ export function TasksPage({ onWaitingChange }: TasksPageProps) {
   function renderTask(task: TaskResponse) {
     const subtasks = children.get(task.id) ?? []
     const completed = task.status === 'COMPLETED'
+    // Pendente: Iniciar or Concluir; Em andamento: Concluir; Concluída: Reabrir.
+    const statusActions: { label: string; next: TaskStatus }[] = completed
+      ? [{ label: 'Reabrir', next: 'PENDING' }]
+      : [
+          ...(task.status === 'PENDING' ? [{ label: 'Iniciar', next: 'IN_PROGRESS' as const }] : []),
+          { label: 'Concluir', next: 'COMPLETED' },
+        ]
     return (
       <li key={task.id} className="py-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -186,17 +197,18 @@ export function TasksPage({ onWaitingChange }: TasksPageProps) {
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1 text-sm">
-            <button
-              type="button"
-              aria-label={`${completed ? 'Reabrir' : 'Concluir'} ${task.title}`}
-              disabled={changeStatus.isPending}
-              onClick={() =>
-                changeStatus.mutate({ id: task.id, status: completed ? 'PENDING' : 'COMPLETED' })
-              }
-              className="px-2 py-1 text-green-700 hover:text-green-900 disabled:opacity-50"
-            >
-              {completed ? 'Reabrir' : 'Concluir'}
-            </button>
+            {statusActions.map((action) => (
+              <button
+                key={action.next}
+                type="button"
+                aria-label={`${action.label} ${task.title}`}
+                disabled={changeStatus.isPending}
+                onClick={() => changeStatus.mutate({ id: task.id, status: action.next })}
+                className="px-2 py-1 text-green-700 hover:text-green-900 disabled:opacity-50"
+              >
+                {action.label}
+              </button>
+            ))}
             <ItemActions
               label={task.title}
               warning="As subtarefas são excluídas junto"

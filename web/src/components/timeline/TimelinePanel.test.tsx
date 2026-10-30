@@ -66,3 +66,21 @@ test('showsWaitingLine', () => {
 
   expect(screen.getByText('aguardando você salvar…')).toBeInTheDocument()
 })
+
+test('keepsLoginResponseOpenAndHighlightsToken', () => {
+  addEntry(
+    entry({
+      method: 'POST',
+      path: '/api/auth/login',
+      status: 200,
+      responseBody: { token: 'eyJhbGciOi…', type: 'Bearer', expiresIn: 3600 },
+    }),
+  )
+  addEntry(entry({ path: '/api/tasks' }))
+
+  render(<TimelinePanel waiting={false} />)
+
+  expect(screen.getByRole('button', { name: /\/api\/auth\/login/ })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByText('Token JWT gerado')).toBeInTheDocument()
+  expect(screen.getByText(/eyJhbGciOi…/)).toBeInTheDocument()
+})

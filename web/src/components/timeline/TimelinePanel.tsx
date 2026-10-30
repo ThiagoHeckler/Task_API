@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTimeline } from '@/lib/timeline'
+import { isLoginSuccess } from './isLoginSuccess'
 import { TimelineRow } from './TimelineRow'
 
 type TimelinePanelProps = {
@@ -10,8 +11,9 @@ type TimelinePanelProps = {
 
 export function TimelinePanel({ waiting }: TimelinePanelProps) {
   const timeline = useTimeline()
-  // Rows the visitor opened or closed; the rest follow the default: only the
-  // newest is expanded, so older ones fold away as new calls arrive.
+  // Rows the visitor opened or closed; the rest follow the default: the newest
+  // is expanded, so older ones fold away as new calls arrive. A successful
+  // login stays open: the token it returns is the point of the demo (spec 7.1).
   const [toggled, setToggled] = useState<Record<number, boolean>>({})
   const newestId = timeline[0]?.id
 
@@ -27,7 +29,7 @@ export function TimelinePanel({ waiting }: TimelinePanelProps) {
       ) : (
         <ul>
           {timeline.map((entry) => {
-            const expanded = toggled[entry.id] ?? entry.id === newestId
+            const expanded = toggled[entry.id] ?? (entry.id === newestId || isLoginSuccess(entry))
             return (
               <TimelineRow
                 key={entry.id}

@@ -178,3 +178,39 @@ test('deleteWarnsAboutSubtasks', async () => {
   expect(screen.getByText('As subtarefas são excluídas junto')).toBeInTheDocument()
 })
 
+
+test('leavesOutPriorityWhenTypingStoppedBeforeIt', async () => {
+  const fetchMock = stubApi({
+    'GET /api/tasks': () => jsonResponse(200, []),
+    'GET /api/categories': () => jsonResponse(200, []),
+    'GET /api/tags': () => jsonResponse(200, []),
+    'POST /api/tasks': () => jsonResponse(201, task({ id: 3, title: 'Minha tarefa' })),
+  })
+  renderWithQueryClient(<TasksPage onWaitingChange={() => {}} />)
+  await screen.findByText('Nenhuma tarefa ainda')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Nova tarefa' }))
+  // Editing the title stops the typewriter before it reaches the priority.
+  fireEvent.change(await screen.findByLabelText('Título'), { target: { value: 'Minha tarefa' } })
+  await userEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+
+  await waitFor(() => expect(requestsOf(fetchMock)).toContain('POST /api/tasks'))
+  expect(bodyOf(fetchMock, 'POST /api/tasks')).toEqual({ title: 'Minha tarefa' })
+})
+
+test('startingTaskSetsInProgress', async () => {
+  const pending = task({ id: 1 })
+  const started = task({ id: 1, status: 'IN_PROGRESS' })
+  const fetchMock = stubApi({
+    'GET /api/tasks': [() => jsonResponse(200, [pending]), () => jsonResponse(200, [started])],
+    'PUT /api/tasks/1': () => jsonResponse(200, started),
+  })
+  renderWithQueryClient(<TasksPage onWaitingChange={() => {}} />)
+  await screen.findByText('Revisar o README')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Iniciar Revisar o README' }))
+
+  await waitFor(() => expect(screen.getByText('Em andamento', { selector: 'span' })).toBeInTheDocument())
+  expect(bodyOf(fetchMock, 'PUT /api/tasks/1')).toEqual({ status: 'IN_PROGRESS' })
+  expect(screen.getByRole('button', { name: 'Concluir Revisar o README' })).toBeInTheDocument()
+})
