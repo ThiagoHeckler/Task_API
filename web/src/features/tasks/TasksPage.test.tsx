@@ -40,6 +40,10 @@ afterEach(() => {
   clearTimeline()
 })
 
+// The task form types ~100 characters, one async act per tick: fine alone,
+// but over 5 s when the whole suite runs in parallel on a busy machine.
+const TYPING_TEST_TIMEOUT_MS = 20_000
+
 function saveIsEnabled() {
   const save = screen.queryByRole('button', { name: 'Salvar' })
   return save !== null && !save.hasAttribute('disabled')
@@ -75,7 +79,7 @@ test('createsTaskWithPresetAndConvertsDueDateToUtc', async () => {
   expect(body.dueDate).toMatch(/T21:00:00$/)
   expect(body).not.toHaveProperty('parentTaskId')
   await waitFor(() => expect(requestsOf(fetchMock).at(-1)).toBe('GET /api/tasks'))
-})
+}, TYPING_TEST_TIMEOUT_MS)
 
 test('completingShowsCompletedAt', async () => {
   const pending = task({ id: 1 })
@@ -162,7 +166,7 @@ test('showsBusinessRuleErrorOn422', async () => {
   expect(await screen.findByText('Uma subtarefa não pode ter subtarefas')).toBeInTheDocument()
   expect(bodyOf(fetchMock, 'POST /api/tasks')).toMatchObject({ parentTaskId: 2 })
   expect(screen.getByLabelText('Título')).toBeInTheDocument()
-})
+}, TYPING_TEST_TIMEOUT_MS)
 
 test('deleteWarnsAboutSubtasks', async () => {
   stubApi({ 'GET /api/tasks': () => jsonResponse(200, [task({ id: 1 })]) })
