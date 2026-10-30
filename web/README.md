@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Task API — demo (front)
 
-## Getting Started
+Site de demonstração da Task API com a tela dividida: à esquerda um sistema de tarefas de verdade,
+à direita a linha do tempo de cada chamada REST que ele fez, com request e response reais.
 
-First, run the development server:
+- O visitante ganha uma **conta temporária** (apagada em 24 h), preenchida com efeito de digitação.
+- Todo formulário é preenchido sozinho e **espera o clique em Salvar**; só então a chamada sai.
+- Erros aparecem como a API os devolve (400 com `fields`, 404, 409, 422, 429), no formulário e na
+  linha do tempo.
+
+Next.js 16 (App Router) + React 19 + TypeScript, Tailwind v4, TanStack Query v5, Vitest + Testing
+Library.
+
+## Como rodar
+
+A API precisa estar no ar (na raiz do repositório):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d --wait   # PostgreSQL na porta 5440
+./mvnw spring-boot:run        # API na porta 8081
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+E o front, nesta pasta:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev                   # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Verificação:
 
-## Learn More
+```bash
+npm test             # Vitest
+npm run lint
+npx tsc --noEmit
+npm run build        # gera out/ (site estático)
+```
 
-To learn more about Next.js, take a look at the following resources:
+Para ver o bloqueio do dia e o aviso de espera, suba a API com limites baixos:
+`DEMO_SIGNUP_DAILY_LIMIT=1 DEMO_RATE_LIMIT_PER_MINUTE=5 ./mvnw spring-boot:run`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Por que export estático
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+A página é toda client-side: ela só conversa com a API. Com `output: 'export'` o build gera HTML,
+JS e CSS em `out/`, que o Caddy serve direto, sem processo Node em produção. O front sempre chama
+`/api` na mesma origem, então não há CORS nem variável de ambiente com a URL da API.
 
-## Deploy on Vercel
+## Proxy de desenvolvimento
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Em produção, o Caddy leva `/api/*` até a API. No `npm run dev`, quem faz isso é o rewrite em
+`next.config.ts`, que só existe na fase de desenvolvimento (export estático não aceita rewrites).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Limitação conhecida no dev:** "Ver somente API" (`/api/swagger-ui/index.html`) abre em branco.
+O rewrite do Next não envia `X-Forwarded-Prefix: /api`, então a API gera o endereço do
+`swagger-config` sem o prefixo (`/v3/api-docs/swagger-config`) e o navegador recebe 404 do Next.
+Em produção o Caddy envia o header e o Swagger carrega. No dev, use o Swagger direto na API:
+`http://localhost:8081/swagger-ui.html`.
+
+## Como está organizado
+
+```
+src/
+├── app/            # layout, página, providers (QueryClient) e DemoApp (cadastro ou sistema)
+├── components/     # TopBar, SplitLayout (colunas ≥ 768 px, abas no celular), linha do tempo
+├── features/
+│   ├── onboarding/ # cadastro descartável e tela de bloqueio do dia
+│   ├── system/     # navegação lateral e peças de formulário compartilhadas
+│   ├── tasks/      # tarefas, subtarefas e filtros
+│   ├── categories/
+│   ├── tags/
+│   ├── account/    # Minha conta (editar nome, excluir conta)
+│   └── presets.ts  # dados de exemplo que o preenchimento automático digita
+├── hooks/          # useTypewriter
+├── lib/            # cliente da API, store da linha do tempo, sessão, datas, tipos
+└── test/           # setup do Vitest e helpers de teste
+```
+
+Decisões que valem lembrar:
+
+- **Um cliente só** (`lib/api.ts`): anexa o token e registra cada requisição na linha do tempo
+  antes do `fetch` e de novo com status, corpo e duração (inclusive em erro e falha de rede).
+- **O token nunca aparece inteiro na tela**: no header `Authorization` e no corpo do login ele
+  aparece com os 10 primeiros caracteres e `…`.
+- **Nenhuma chamada automática**: o TanStack Query não refaz requisições sozinho (foco, reconexão,
+  retry). Cada linha da linha do tempo vem de uma ação do visitante; depois de salvar, a lista é
+  invalidada e o `GET` seguinte, real, aparece também.
+- **Datas**: a API devolve UTC sem offset; o front exibe e recebe no horário de São Paulo.
+- **Token em `sessionStorage`**: sobrevive a recarregar a aba e some ao fechá-la. Qualquer 401
+  com token volta para o cadastro.

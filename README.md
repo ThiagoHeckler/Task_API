@@ -8,7 +8,7 @@ API REST de gerenciamento de tarefas (to-do list) com autenticação JWT, constr
 ![Maven](https://img.shields.io/badge/Maven-C71A36)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI; o próximo passo é o deploy. O roadmap completo está no final deste documento.
+> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI, e o site de demonstração (pasta [`web/`](web/)) está pronto; o próximo passo é o deploy. O roadmap completo está no final deste documento.
 
 ---
 
@@ -33,6 +33,7 @@ O projeto foi construído do zero, sem geradores de código ou scaffolding, com 
 | Validação | Jakarta Bean Validation |
 | Build | Maven |
 | Documentação | OpenAPI / Swagger UI (springdoc) |
+| Demo (front) | Next.js 16 (export estático), React 19, TypeScript, Tailwind v4, TanStack Query |
 
 ---
 
@@ -126,6 +127,16 @@ Esta seção existe porque o "porquê" costuma valer mais do que o código em si
 
 ---
 
+## Demo com tela dividida
+
+A pasta [`web/`](web/) tem um site que mostra a API funcionando: à esquerda, um sistema de tarefas; à direita, a linha do tempo de cada chamada REST que ele fez, com request e response reais.
+
+O visitante ganha uma conta temporária (apagada em 24 horas), e cada formulário é preenchido sozinho, com efeito de digitação, esperando o clique em **Salvar** para a chamada sair. Os erros aparecem como a API os devolve: 400 com os campos, 409, 422, e os dois 429 (teto diário de cadastros, que bloqueia a demo até a meia-noite, e limite por IP, que só pede para esperar). O botão **Ver somente API** leva ao Swagger.
+
+O site é estático (`output: 'export'`) e sempre chama `/api` na mesma origem: em produção o proxy reverso leva `/api` até a API; em desenvolvimento, o `next dev` faz esse papel. Como rodar e as decisões do front estão em [`web/README.md`](web/README.md).
+
+---
+
 ## Estrutura do projeto
 
 ```
@@ -139,6 +150,7 @@ src/main/java/com/thiago/taskapi/task_api/
 ├── repository/    # Interfaces Spring Data JPA
 ├── security/      # JwtService, filtro JWT e respostas 401/403
 └── service/       # Regras de negócio
+web/               # Site da demo (Next.js), ver web/README.md
 ```
 
 ---
@@ -306,6 +318,8 @@ As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis 
 
 Para recomeçar com o banco vazio: `docker compose down -v && docker compose up -d`.
 
+Para rodar a demo junto, com a API no ar: `cd web && npm install && npm run dev` e abrir `http://localhost:3000`.
+
 ---
 
 ## Roadmap
@@ -322,7 +336,7 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 8 | Documentação com Swagger / OpenAPI | ✅ |
 | 9 | Deploy | 🚧 |
 | 10 | Testes automatizados e polimento | ⬜ |
-| 11 | Demo com tela dividida (sistema + chamadas da API em tempo real) | ⬜ |
+| 11 | Demo com tela dividida (sistema + chamadas da API em tempo real) | 🚧 front pronto; publicação junto com o deploy |
 
 ---
 

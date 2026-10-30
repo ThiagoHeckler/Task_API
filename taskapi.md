@@ -39,6 +39,7 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 | Maven | 3.9.16 (wrapper `./mvnw` versionado em `.mvn/`) |
 | JWT | JJWT 0.12.6 (`jjwt-api` compile; `jjwt-impl` e `jjwt-jackson` runtime) |
 | OpenAPI | springdoc-openapi 3.1.1 (linha 3.x = Boot 4; a 2.x é para Boot 3) |
+| Front da demo (`web/`) | Node 24, Next.js 16.4.3, React 19.3, TypeScript, Tailwind v4, TanStack Query 5, Vitest 5 |
 
 - **Porta da aplicação: 8081** (a 8080 está ocupada por um container Docker).
 - **Banco via `docker-compose.yml`**: container `taskapi-db`, imagem `postgres:18-alpine`,
@@ -70,6 +71,11 @@ src/main/resources/
 ├── db/migration/           # migrations do Flyway (V1__schema_inicial.sql = schema inicial)
 └── applicationExemple.yml  # modelo de configuração
 docker-compose.yml          # PostgreSQL 18 na porta 5440
+web/                        # front da demo (Next.js, export estático) — detalhes em web/README.md
+├── src/lib/                # api.ts (cliente que alimenta a linha do tempo), timeline, session, dates, types
+├── src/features/           # onboarding, system, tasks, categories, tags, account, presets.ts
+├── src/components/         # TopBar, SplitLayout, timeline/
+└── src/hooks/              # useTypewriter
 ```
 
 Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api` com hífen).
@@ -210,6 +216,27 @@ Proteções da demo pública (28/10/2026, design em `docs/superpowers/specs/2026
   horas diferentes. Consequência: **as datas da API saem em UTC, sem offset** (ex.:
   `2026-10-29T02:10:25`); o front trata como UTC e converte para exibir.
 
+Front da demo (Parte 2, 29/10/2026, plano `docs/superpowers/plans/2026-10-29-demo-parte2-front.md`):
+- **Export estático** (`output: 'export'`), uma página client-side; o Caddy serve `web/out/`.
+  O front sempre chama `/api` (mesma origem, sem CORS). No dev, `next.config.ts` faz rewrite de
+  `/api/*` para `localhost:8081` só na fase de desenvolvimento (export não aceita rewrites).
+- **Cliente único** `web/src/lib/api.ts`: registra cada chamada na linha do tempo (antes e depois
+  do `fetch`, também em erro e falha de rede com `status: 0`). O token aparece abreviado
+  (10 caracteres + `…`) no header `Authorization` **e no corpo da resposta do login**.
+- **Sem chamadas automáticas**: TanStack Query com `staleTime: Infinity`, sem refetch em foco ou
+  reconexão e sem retry. Depois de cada mutação, `invalidateQueries` gera o `GET` real seguinte.
+- **Preenchimento automático** (`useTypewriter`): digita o preset e para no primeiro toque do
+  visitante; "Salvar" só habilita quando a digitação termina ou o visitante edita.
+- **Dois 429 distintos**: `isDailyLimit` compara a mensagem exata da API → `LockScreen`; o 429
+  por IP só mostra aviso de espera.
+- **Sessão**: token em `sessionStorage` (`task-api-demo-token`); qualquer 401 com token limpa
+  token e cache e volta ao cadastro com "Sua sessão expirou…".
+- **"Subtarefa de"** lista também subtarefas (com "↳"), para o 422 real poder aparecer.
+- **Swagger no dev**: o rewrite do Next não envia `X-Forwarded-Prefix`, então
+  `/api/swagger-ui/index.html` abre em branco em `localhost:3000` (o `swagger-config` vem sem
+  `/api`). Em produção o Caddy envia o header. No dev, usar `localhost:8081/swagger-ui.html`.
+- Sem dependências além do scaffold, `@tanstack/react-query` e o setup de testes do Vitest.
+
 ---
 
 ## 7. Endpoints atuais
@@ -245,7 +272,7 @@ teto diário de cadastros é atingido.
 | 8 | Swagger / OpenAPI | ✅ (ligar ou não em produção fica para a fase 9) |
 | 9 | Deploy (junto com a demo da fase 11) | 🚧 parte 1 (API pronta para produção) ✅; deploy na VPS pendente |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
-| 11 | Front-end de vitrine: demo com tela dividida (antecipada, vai junto com o deploy) | ⬜ |
+| 11 | Front-end de vitrine: demo com tela dividida (antecipada, vai junto com o deploy) | 🚧 parte 2 (front em `web/`) ✅; publicação com o deploy |
 
 README e este documento usam a mesma numeração.
 
@@ -256,8 +283,9 @@ README e este documento usam a mesma numeração.
 Demo com tela dividida + deploy (spec `docs/superpowers/specs/2026-10-28-demo-tela-dividida-design.md`):
 1. ~~Parte 1 — API~~ ✅ (plano `docs/superpowers/plans/2026-10-28-demo-parte1-api.md`): Flyway,
    teto diário, limite por IP, limpeza das contas, forwarded headers.
-2. **Parte 2 — front Next.js** em `web/` (export estático): plano a escrever.
-3. **Parte 3 — deploy** em `tasks.thiagoheckler.com.br` (VPS Hostinger, repo `Portfolio`, Caddy,
+2. ~~Parte 2 — front Next.js~~ ✅ (plano `docs/superpowers/plans/2026-10-29-demo-parte2-front.md`):
+   site estático em `web/`.
+3. **Parte 3 — deploy** (próximo) em `tasks.thiagoheckler.com.br` (VPS Hostinger, repo `Portfolio`, Caddy,
    PostgreSQL 17): plano a escrever. Swagger fica ligado em produção.
 
 ---
@@ -309,6 +337,10 @@ Adiado de propósito:
 # subir o banco e a aplicação
 docker compose up -d
 ./mvnw spring-boot:run
+
+# front da demo (com a API no ar): http://localhost:3000
+cd web && npm run dev
+cd web && npm test && npm run lint && npx tsc --noEmit && npm run build
 
 # testar os limites da demo com valores baixos
 DEMO_SIGNUP_DAILY_LIMIT=2 DEMO_RATE_LIMIT_PER_MINUTE=10 ./mvnw spring-boot:run
