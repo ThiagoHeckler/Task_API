@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* The system side is always light (approved visual); the API panel sets its
+   own dark colors. No prefers-color-scheme switch, so a dark OS theme does not
+   turn the page background dark under components designed for a light one. */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

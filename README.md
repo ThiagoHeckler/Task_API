@@ -8,7 +8,9 @@ API REST de gerenciamento de tarefas (to-do list) com autenticação JWT, constr
 ![Maven](https://img.shields.io/badge/Maven-C71A36)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI; o próximo passo é o deploy. O roadmap completo está no final deste documento.
+> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI, e o site de demonstração (pasta [`web/`](web/)) está pronto e o deploy está configurado (imagem Docker, perfil `prod` e [`scripts/deploy.sh`](scripts/deploy.sh)). O roadmap completo está no final deste documento.
+
+**Demo:** [tasks.thiagoheckler.com.br](https://tasks.thiagoheckler.com.br) · **Swagger:** [tasks.thiagoheckler.com.br/api/swagger-ui/index.html](https://tasks.thiagoheckler.com.br/api/swagger-ui/index.html)
 
 ---
 
@@ -28,10 +30,12 @@ O projeto foi construído do zero, sem geradores de código ou scaffolding, com 
 | Framework | Spring Boot 4.1.0 |
 | Persistência | Spring Data JPA + Hibernate 7.4.1 |
 | Banco de dados | PostgreSQL 18 (via Docker Compose) |
+| Migrations | Flyway |
 | Segurança | Spring Security, BCrypt, JWT (JJWT 0.12.6) |
 | Validação | Jakarta Bean Validation |
 | Build | Maven |
 | Documentação | OpenAPI / Swagger UI (springdoc) |
+| Demo (front) | Next.js 16 (export estático), React 19, TypeScript, Tailwind v4, TanStack Query |
 
 ---
 
@@ -117,7 +121,21 @@ Esta seção existe porque o "porquê" costuma valer mais do que o código em si
 
 **Erros de segurança no mesmo formato dos demais.** O 401 e o 403 acontecem nos filtros, antes de a requisição chegar ao controller, onde o `@RestControllerAdvice` não alcança. Por isso um `AuthenticationEntryPoint` e um `AccessDeniedHandler` próprios escrevem o mesmo JSON de `ErrorResponse`.
 
+**Proteções para uma demo pública.** Toda conta é temporária: um job agendado apaga as contas com mais de 24 horas, e o `ON DELETE CASCADE` leva tarefas, categorias e tags junto. Há um teto global de cadastros por dia (o "dia" é o de São Paulo, calculado no próprio PostgreSQL para não depender do fuso do servidor) e um limite de requisições por minuto por IP; os dois respondem `429` com `Retry-After`. Atrás do proxy reverso, a API lê o IP real do visitante do `X-Forwarded-For` e o prefixo `/api` do `X-Forwarded-Prefix`.
+
+**Schema versionado com Flyway.** As mudanças no banco entram como migrations (`src/main/resources/db/migration`), e o Hibernate só valida o schema (`ddl-auto: validate`).
+
 **Sem refresh token (limitação consciente).** O token expira em 1 hora e o cliente precisa logar de novo. O filtro também não consulta o banco a cada requisição, então o token de um usuário excluído continua válido até expirar — as operações dele passam a devolver 404.
+
+---
+
+## Demo com tela dividida
+
+A pasta [`web/`](web/) tem um site que mostra a API funcionando: à esquerda, um sistema de tarefas; à direita, a linha do tempo de cada chamada REST que ele fez, com request e response reais.
+
+O visitante ganha uma conta temporária (apagada em 24 horas), e cada formulário é preenchido sozinho, com efeito de digitação, esperando o clique em **Salvar** para a chamada sair. Os erros aparecem como a API os devolve: 400 com os campos, 409, 422, e os dois 429 (teto diário de cadastros, que bloqueia a demo até a meia-noite, e limite por IP, que só pede para esperar). O botão **Ver somente API** leva ao Swagger.
+
+O site é estático (`output: 'export'`) e sempre chama `/api` na mesma origem: em produção o proxy reverso leva `/api` até a API; em desenvolvimento, o `next dev` faz esse papel. Como rodar e as decisões do front estão em [`web/README.md`](web/README.md).
 
 ---
 
@@ -134,6 +152,7 @@ src/main/java/com/thiago/taskapi/task_api/
 ├── repository/    # Interfaces Spring Data JPA
 ├── security/      # JwtService, filtro JWT e respostas 401/403
 └── service/       # Regras de negócio
+web/               # Site da demo (Next.js), ver web/README.md
 ```
 
 ---
@@ -277,21 +296,28 @@ O Maven não precisa estar instalado: o projeto inclui o wrapper `./mvnw`.
 git clone https://github.com/ThiagoHeckler/Task_API.git
 cd Task_API
 
-# 2. Subir o PostgreSQL (o schema é aplicado automaticamente na primeira subida)
+# 2. Subir o PostgreSQL (o schema é criado pelo Flyway quando a aplicação sobe)
 docker compose up -d
 
-# 3. Criar a configuração local a partir do modelo
-cp src/main/resources/applicationExemple.yml src/main/resources/application.yml
-
-# 4. Subir a aplicação
+# 3. Subir a aplicação (o application.yml versionado já aponta para esse banco)
 ./mvnw spring-boot:run
 ```
 
 A API sobe em `http://localhost:8081` e o banco fica em `localhost:5440`.
 
-As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis de ambiente `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O segredo precisa ter no mínimo 32 caracteres; o valor padrão do `applicationExemple.yml` serve apenas para desenvolvimento.
+Variáveis de ambiente opcionais:
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `JWT_SECRET` | chave de desenvolvimento | segredo de assinatura do JWT (obrigatório trocar em produção) |
+| `DEMO_SIGNUP_DAILY_LIMIT` | `100` | cadastros permitidos por dia (fuso de São Paulo) |
+| `DEMO_RATE_LIMIT_PER_MINUTE` | `120` | requisições por minuto por IP |
+
+As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis de ambiente `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O segredo precisa ter no mínimo 32 caracteres; o valor padrão do `application.yml` serve apenas para desenvolvimento. Com o perfil `prod` (`application-prod.yml`, usado na imagem Docker) não há valor padrão: sem `JWT_SECRET` a API não sobe.
 
 Para recomeçar com o banco vazio: `docker compose down -v && docker compose up -d`.
+
+Para rodar a demo junto, com a API no ar: `cd web && npm install && npm run dev` e abrir `http://localhost:3000`.
 
 ---
 
@@ -307,9 +333,9 @@ Para recomeçar com o banco vazio: `docker compose down -v && docker compose up 
 | 6 | Services e controllers (CRUD completo) | ✅ |
 | 7 | Autenticação com JWT | ✅ |
 | 8 | Documentação com Swagger / OpenAPI | ✅ |
-| 9 | Deploy | ⬜ |
+| 9 | Deploy | 🚧 |
 | 10 | Testes automatizados e polimento | ⬜ |
-| 11 | Front-end de vitrine *(opcional)* | ⬜ |
+| 11 | Demo com tela dividida (sistema + chamadas da API em tempo real) | 🚧 front pronto; publicação junto com o deploy |
 
 ---
 

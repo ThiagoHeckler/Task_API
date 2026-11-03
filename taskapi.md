@@ -39,6 +39,7 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
 | Maven | 3.9.16 (wrapper `./mvnw` versionado em `.mvn/`) |
 | JWT | JJWT 0.12.6 (`jjwt-api` compile; `jjwt-impl` e `jjwt-jackson` runtime) |
 | OpenAPI | springdoc-openapi 3.1.1 (linha 3.x = Boot 4; a 2.x é para Boot 3) |
+| Front da demo (`web/`) | Node 24, Next.js 16.4.3, React 19.3, TypeScript, Tailwind v4, TanStack Query 5, Vitest 5 |
 
 - **Porta da aplicação: 8081** (a 8080 está ocupada por um container Docker).
 - **Banco via `docker-compose.yml`**: container `taskapi-db`, imagem `postgres:18-alpine`,
@@ -46,8 +47,10 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
   usuário/senha `thiago`/`thiago` por padrão (`DB_USER` / `DB_PASSWORD`).
 - **Uma máquina só**: o desenvolvimento continua apenas na máquina com Arch Linux. Os clones
   antigos (Zorin, Elementary) foram abandonados e têm histórico incompatível (ver seção 10).
-- `application.yml` está no `.gitignore`. O modelo versionado é
-  `src/main/resources/applicationExemple.yml` — mudanças de configuração vão nos dois.
+- `application.yml` é versionado e não tem segredo: tudo que muda por ambiente vem de
+  `${VARIAVEL:padrao-de-dev}`. `application-prod.yml` (perfil `prod`, ativado na VPS) troca a
+  porta para 8080, desliga o `show-sql`, limita o pool a 5 e exige `JWT_SECRET` sem padrão.
+  (antes: `application.yml` no `.gitignore` e modelo em `applicationExemple.yml`.)
 
 ---
 
@@ -67,9 +70,15 @@ src/main/java/com/thiago/taskapi/task_api/
 ├── repository/  UserRepository, CategoryRepository, TagRepository, TaskRepository
 └── service/     AuthService, UserService, CategoryService, TagService, TaskService
 src/main/resources/
-├── schema.sql              # aplicado pelo docker-compose na primeira subida
-└── applicationExemple.yml  # modelo de configuração
+├── db/migration/           # migrations do Flyway (V1__schema_inicial.sql = schema inicial)
+├── application.yml         # configuração de dev (sem segredo; valores por variável de ambiente)
+└── application-prod.yml    # perfil prod: porta 8080, pool 5, JWT_SECRET obrigatório
 docker-compose.yml          # PostgreSQL 18 na porta 5440
+web/                        # front da demo (Next.js, export estático) — detalhes em web/README.md
+├── src/lib/                # api.ts (cliente que alimenta a linha do tempo), timeline, session, dates, types
+├── src/features/           # onboarding, system, tasks, categories, tags, account, presets.ts
+├── src/components/         # TopBar, SplitLayout, timeline/
+└── src/hooks/              # useTypewriter
 ```
 
 Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api` com hífen).
@@ -78,9 +87,11 @@ Pacote base: `com.thiago.taskapi.task_api` (o Initializr não aceitou `task-api`
 
 ## 5. Banco de dados
 
-O **banco é a fonte da verdade**: `ddl-auto: validate`. O `schema.sql` é montado em
-`/docker-entrypoint-initdb.d/` e roda **só quando o volume está vazio** — mudou o schema,
-precisa recriar o volume (`docker compose down -v && docker compose up -d`).
+O **banco é a fonte da verdade**: `ddl-auto: validate`. O schema é versionado com **Flyway**
+(`src/main/resources/db/migration/`), aplicado quando a aplicação sobe. Mudou o schema? Nova
+migration `V{n}__descricao.sql`; **nunca editar uma migration já executada**.
+(Antes: `schema.sql` montado no `docker-entrypoint-initdb.d`, trocado em 28/10/2026 para
+alinhar com os outros projetos do portfólio na VPS.)
 
 Tabelas: `users`, `categories`, `tags`, `tasks`, `task_tags` (pivô N:N).
 
@@ -177,11 +188,57 @@ Pontos de design do schema:
   operação com `security == null` (herda o requirement global); as públicas têm lista vazia e
   ficam de fora. O `/auth/login` declara o próprio 401 (credenciais inválidas).
 - **`springdoc.default-produces-media-type: application/json`** — sem isso as respostas
-  aparecem como `*/*` no Swagger. Precisa estar também no `application.yml` local.
+  aparecem como `*/*` no Swagger. Fica no `application.yml`.
 - **Exemplo do corpo inteiro** (`@Schema(example)` no record) em `CreateTaskRequest`,
   `UpdateTaskRequest` e `UpdateUserRequest`: sem isso o "Try it out" monta o JSON com todos os
   campos e manda `parentTaskId: 0` / `tagIds: [1]` (404 para usuário novo) e, no `PUT /users/me`,
   troca email e senha.
+
+Proteções da demo pública (28/10/2026, design em `docs/superpowers/specs/2026-10-28-demo-tela-dividida-design.md`):
+- **Toda conta é de demonstração.** `DemoAccountCleanup` roda de hora em hora e apaga usuários com
+  mais de 24 h (`UserRepository.deleteOlderThan24Hours`); o `ON DELETE CASCADE` leva o resto.
+- **Teto global de cadastros por dia** (`DEMO_SIGNUP_DAILY_LIMIT`, padrão 100), independente de IP.
+  O "hoje" é o de São Paulo e é calculado no PostgreSQL (`countCreatedToday`), não na JVM: o
+  container roda em UTC e o dia viraria às 21h. Ao atingir: `429`, mensagem exata
+  `SignupLimitReachedException.MESSAGE` ("Limite de usuários que testaram o sistema hoje
+  atingido") e `Retry-After` até a meia-noite. **O front identifica o bloqueio do dia por essa
+  mensagem** em `POST /users`.
+- **Limite por IP** (`RateLimitFilter`, `DEMO_RATE_LIMIT_PER_MINUTE`, padrão 120/min, janela fixa
+  em memória). `429` com "Muitas requisições. Aguarde um minuto e tente novamente." e
+  `Retry-After` até o fim do minuto. `/swagger-ui/**` (estáticos) fica fora do limite; abrir o
+  Swagger já baixa vários arquivos. Criado no `SecurityConfig`, não como `@Component`, para não
+  ser registrado duas vezes.
+- **Atrás do proxy:** `server.forward-headers-strategy: framework` — IP do cliente vem do
+  `X-Forwarded-For` e o prefixo `/api` do `X-Forwarded-Prefix` (Swagger gera URLs com `/api`).
+  **Requisito do deploy:** a porta da API não pode ser publicada e o Caddy precisa sobrescrever
+  `X-Forwarded-For` (`header_up X-Forwarded-For {remote_host}`), senão o limite por IP é burlável.
+- **Schema com Flyway** (`db/migration/V1__schema_inicial.sql`), alinhado com o portfólio.
+- **Fuso único UTC** (`TaskApiApplication`, bloco estático com `TimeZone.setDefault`): o driver
+  JDBC usa o fuso da JVM na sessão do PostgreSQL, e `created_at`/`updated_at` são `TIMESTAMP` sem
+  fuso preenchidos pelo `now()` da sessão. Sem isso, dev (São Paulo) e container (UTC) gravariam
+  horas diferentes. Consequência: **as datas da API saem em UTC, sem offset** (ex.:
+  `2026-10-29T02:10:25`); o front trata como UTC e converte para exibir.
+
+Front da demo (Parte 2, 29/10/2026, plano `docs/superpowers/plans/2026-10-29-demo-parte2-front.md`):
+- **Export estático** (`output: 'export'`), uma página client-side; o Caddy serve `web/out/`.
+  O front sempre chama `/api` (mesma origem, sem CORS). No dev, `next.config.ts` faz rewrite de
+  `/api/*` para `localhost:8081` só na fase de desenvolvimento (export não aceita rewrites).
+- **Cliente único** `web/src/lib/api.ts`: registra cada chamada na linha do tempo (antes e depois
+  do `fetch`, também em erro e falha de rede com `status: 0`). O token aparece abreviado
+  (10 caracteres + `…`) no header `Authorization` **e no corpo da resposta do login**.
+- **Sem chamadas automáticas**: TanStack Query com `staleTime: Infinity`, sem refetch em foco ou
+  reconexão e sem retry. Depois de cada mutação, `invalidateQueries` gera o `GET` real seguinte.
+- **Preenchimento automático** (`useTypewriter`): digita o preset e para no primeiro toque do
+  visitante; "Salvar" só habilita quando a digitação termina ou o visitante edita.
+- **Dois 429 distintos**: `isDailyLimit` compara a mensagem exata da API → `LockScreen`; o 429
+  por IP só mostra aviso de espera.
+- **Sessão**: token em `sessionStorage` (`task-api-demo-token`); qualquer 401 com token limpa
+  token e cache e volta ao cadastro com "Sua sessão expirou…".
+- **"Subtarefa de"** lista também subtarefas (com "↳"), para o 422 real poder aparecer.
+- **Swagger no dev**: o rewrite do Next não envia `X-Forwarded-Prefix`, então
+  `/api/swagger-ui/index.html` abre em branco em `localhost:3000` (o `swagger-config` vem sem
+  `/api`). Em produção o Caddy envia o header. No dev, usar `localhost:8081/swagger-ui.html`.
+- Sem dependências além do scaffold, `@tanstack/react-query` e o setup de testes do Vitest.
 
 ---
 
@@ -199,6 +256,9 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | Tags | `POST/GET /tags`, `GET/PUT/DELETE /tags/{id}` |
 | Tarefas | `POST/GET /tasks` (`?status=` opcional), `GET /tasks/root`, `GET/PUT/DELETE /tasks/{id}` |
 
+Qualquer rota pode devolver `429` (limite por IP); `POST /users` também devolve `429` quando o
+teto diário de cadastros é atingido.
+
 ---
 
 ## 8. Fases
@@ -213,9 +273,9 @@ Todos funcionais e testados via curl. Exceto os marcados como públicos, exigem
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
 | 8 | Swagger / OpenAPI | ✅ (ligar ou não em produção fica para a fase 9) |
-| 9 | Deploy | ⬜ |
+| 9 | Deploy (junto com a demo da fase 11) | 🚧 partes 1 e 3 (API pronta, imagem, Portfolio configurado) ✅; primeira subida na VPS pendente |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
-| 11 | Front-end de vitrine (opcional; decidir depois da fase 10) | ⬜ |
+| 11 | Front-end de vitrine: demo com tela dividida (antecipada, vai junto com o deploy) | 🚧 parte 2 (front em `web/`) ✅; publicação com o deploy |
 
 README e este documento usam a mesma numeração.
 
@@ -223,8 +283,28 @@ README e este documento usam a mesma numeração.
 
 ## 9. Próximo passo
 
-**Fase 9 (deploy)**, a decidir: plataforma, segredo `JWT_SECRET` real, desligar Swagger em
-produção ou não (`springdoc.api-docs.enabled` / `springdoc.swagger-ui.enabled`).
+Demo com tela dividida + deploy (spec `docs/superpowers/specs/2026-10-28-demo-tela-dividida-design.md`):
+1. ~~Parte 1 — API~~ ✅ (plano `docs/superpowers/plans/2026-10-28-demo-parte1-api.md`): Flyway,
+   teto diário, limite por IP, limpeza das contas, forwarded headers.
+2. ~~Parte 2 — front Next.js~~ ✅ (plano `docs/superpowers/plans/2026-10-29-demo-parte2-front.md`):
+   site estático em `web/`.
+3. **Parte 3 — deploy** (plano `docs/superpowers/plans/2026-11-02-demo-parte3-deploy.md`):
+   código pronto (Dockerfile, perfil `prod`, `scripts/deploy.sh`; no repo `Portfolio`, branch
+   `feat/task-api-deploy`: serviço `task-api`, bloco do Caddy, `.env.example`). Falta a
+   primeira subida na VPS (Thiago).
+
+### Deploy
+
+- Imagem `thiagoheckler/task-api` (Docker Hub), tags `latest` e SHA curto do commit; build
+  multi-stage (`maven:3.9-eclipse-temurin-25` → `eclipse-temurin:25-jre-alpine`, usuário não-root).
+  A imagem sobe com `SPRING_PROFILES_ACTIVE=prod` (`application-prod.yml`).
+- Variáveis na VPS (`.env` do Portfolio): `TASKAPI_JWT_SECRET` (obrigatória),
+  `TASKAPI_SIGNUP_DAILY_LIMIT`, `TASKAPI_RATE_LIMIT_PER_MINUTE`; banco pelas
+  `SPRING_DATASOURCE_*` do compose.
+- Caddy: `/` serve `sites/tasks/` (cópia do `web/out`), `/api/*` vai para `task-api:8080` sem o
+  prefixo, com `X-Forwarded-For {remote_host}` e `X-Forwarded-Prefix /api`. A API não publica porta.
+- Publicar: `VPS=dev@72.60.49.243 PORTFOLIO_DIR=<pasta> scripts/deploy.sh`. Rollback no
+  cabeçalho do script.
 
 ---
 
@@ -276,8 +356,18 @@ Adiado de propósito:
 docker compose up -d
 ./mvnw spring-boot:run
 
-# recriar o banco do zero (CUIDADO: apaga dados; reaplica o schema.sql)
+# front da demo (com a API no ar): http://localhost:3000
+cd web && npm run dev
+cd web && npm test && npm run lint && npx tsc --noEmit && npm run build
+
+# testar os limites da demo com valores baixos
+DEMO_SIGNUP_DAILY_LIMIT=2 DEMO_RATE_LIMIT_PER_MINUTE=10 ./mvnw spring-boot:run
+
+# recriar o banco do zero (CUIDADO: apaga dados; o Flyway reaplica as migrations ao subir a API)
 docker compose down -v && docker compose up -d
+
+# imagem de produção local (precisa de um PostgreSQL acessível e JWT_SECRET)
+docker build -t thiagoheckler/task-api:latest .
 
 # psql dentro do container
 docker exec -it taskapi-db psql -U thiago -d taskapi
