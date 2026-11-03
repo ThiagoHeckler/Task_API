@@ -47,8 +47,10 @@ Artefatos de portfólio planejados: README forte, Swagger/OpenAPI, deploy públi
   usuário/senha `thiago`/`thiago` por padrão (`DB_USER` / `DB_PASSWORD`).
 - **Uma máquina só**: o desenvolvimento continua apenas na máquina com Arch Linux. Os clones
   antigos (Zorin, Elementary) foram abandonados e têm histórico incompatível (ver seção 10).
-- `application.yml` está no `.gitignore`. O modelo versionado é
-  `src/main/resources/applicationExemple.yml` — mudanças de configuração vão nos dois.
+- `application.yml` é versionado e não tem segredo: tudo que muda por ambiente vem de
+  `${VARIAVEL:padrao-de-dev}`. `application-prod.yml` (perfil `prod`, ativado na VPS) troca a
+  porta para 8080, desliga o `show-sql`, limita o pool a 5 e exige `JWT_SECRET` sem padrão.
+  (antes: `application.yml` no `.gitignore` e modelo em `applicationExemple.yml`.)
 
 ---
 
@@ -69,7 +71,8 @@ src/main/java/com/thiago/taskapi/task_api/
 └── service/     AuthService, UserService, CategoryService, TagService, TaskService
 src/main/resources/
 ├── db/migration/           # migrations do Flyway (V1__schema_inicial.sql = schema inicial)
-└── applicationExemple.yml  # modelo de configuração
+├── application.yml         # configuração de dev (sem segredo; valores por variável de ambiente)
+└── application-prod.yml    # perfil prod: porta 8080, pool 5, JWT_SECRET obrigatório
 docker-compose.yml          # PostgreSQL 18 na porta 5440
 web/                        # front da demo (Next.js, export estático) — detalhes em web/README.md
 ├── src/lib/                # api.ts (cliente que alimenta a linha do tempo), timeline, session, dates, types
@@ -185,7 +188,7 @@ Pontos de design do schema:
   operação com `security == null` (herda o requirement global); as públicas têm lista vazia e
   ficam de fora. O `/auth/login` declara o próprio 401 (credenciais inválidas).
 - **`springdoc.default-produces-media-type: application/json`** — sem isso as respostas
-  aparecem como `*/*` no Swagger. Precisa estar também no `application.yml` local.
+  aparecem como `*/*` no Swagger. Fica no `application.yml`.
 - **Exemplo do corpo inteiro** (`@Schema(example)` no record) em `CreateTaskRequest`,
   `UpdateTaskRequest` e `UpdateUserRequest`: sem isso o "Try it out" monta o JSON com todos os
   campos e manda `parentTaskId: 0` / `tagIds: [1]` (404 para usuário novo) e, no `PUT /users/me`,

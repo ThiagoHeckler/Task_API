@@ -297,10 +297,7 @@ cd Task_API
 # 2. Subir o PostgreSQL (o schema é criado pelo Flyway quando a aplicação sobe)
 docker compose up -d
 
-# 3. Criar a configuração local a partir do modelo
-cp src/main/resources/applicationExemple.yml src/main/resources/application.yml
-
-# 4. Subir a aplicação
+# 3. Subir a aplicação (o application.yml versionado já aponta para esse banco)
 ./mvnw spring-boot:run
 ```
 
@@ -314,7 +311,7 @@ Variáveis de ambiente opcionais:
 | `DEMO_SIGNUP_DAILY_LIMIT` | `100` | cadastros permitidos por dia (fuso de São Paulo) |
 | `DEMO_RATE_LIMIT_PER_MINUTE` | `120` | requisições por minuto por IP |
 
-As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis de ambiente `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O segredo precisa ter no mínimo 32 caracteres; o valor padrão do `applicationExemple.yml` serve apenas para desenvolvimento.
+As credenciais do banco e o segredo do JWT podem ser definidos pelas variáveis de ambiente `DB_USER`, `DB_PASSWORD` e `JWT_SECRET`. O segredo precisa ter no mínimo 32 caracteres; o valor padrão do `application.yml` serve apenas para desenvolvimento. Com o perfil `prod` (`application-prod.yml`, usado na imagem Docker) não há valor padrão: sem `JWT_SECRET` a API não sobe.
 
 Para recomeçar com o banco vazio: `docker compose down -v && docker compose up -d`.
 

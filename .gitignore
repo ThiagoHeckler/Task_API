@@ -22,7 +22,6 @@ Thumbs.db
 # Logs e ambiente
 *.log
 .env
-*application.yml 
 
 # Ferramentas de IA (ruflo)
 .claude-flow/

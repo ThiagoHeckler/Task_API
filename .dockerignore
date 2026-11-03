@@ -1,0 +1,14 @@
+# Só pom.xml e src/ entram no build
+web/
+target/
+.git/
+.mvn/
+.superpowers/
+.claude-flow/
+.swarm/
+.playwright-mcp/
+.ai-jail
+ruvector.db
+docs/
+*.md
+.env
