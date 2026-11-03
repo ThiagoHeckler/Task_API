@@ -48,6 +48,9 @@ export function TaskForm({
   onCancel,
 }: TaskFormProps) {
   const { values, setValue, done } = useTypewriter(suggested, { from: current, instant: INSTANT_FIELDS })
+  // The API treats an empty field as "do not change": editing cannot clear these.
+  const keepsDueDate = mode === 'edit' && Boolean(current?.dueDate)
+  const keepsCategory = mode === 'edit' && Boolean(current?.categoryId)
   const selectedTags = values.tagIds ? values.tagIds.split(',') : []
 
   function toggleTag(id: string) {
@@ -111,6 +114,7 @@ export function TaskForm({
             <input
               {...props}
               type="datetime-local"
+              required={keepsDueDate}
               value={values.dueDate}
               onChange={(event) => setValue('dueDate', event.target.value)}
               className={inputClass}
@@ -126,7 +130,9 @@ export function TaskForm({
             onChange={(event) => setValue('categoryId', event.target.value)}
             className={inputClass}
           >
-            <option value="">Sem categoria</option>
+            <option value="" disabled={keepsCategory}>
+              Sem categoria
+            </option>
             {categories.map((category) => (
               <option key={category.id} value={String(category.id)}>
                 {category.name}

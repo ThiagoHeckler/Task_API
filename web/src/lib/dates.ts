@@ -51,6 +51,8 @@ function saoPauloOffsetMinutes(instant: Date): number {
 // LocalDateTime string the API expects.
 export function toApiDateTime(local: string): string {
   const asUtc = new Date(`${local}Z`)
+  // Out of Date's range (e.g. a 6-digit year): send it as typed and let the API answer with its 400.
+  if (Number.isNaN(asUtc.getTime())) return local
   const offset = saoPauloOffsetMinutes(asUtc)
   const utc = new Date(asUtc.getTime() - offset * 60_000)
   return utc.toISOString().slice(0, 19)

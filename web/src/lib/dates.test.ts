@@ -17,3 +17,9 @@ test('convertsApiDateToLocalInput', () => {
   expect(toInputDateTime('2026-11-30T21:00:00')).toBe('2026-11-30T18:00')
   expect(toInputDateTime(null)).toBe('')
 })
+
+test('passesInvalidDateThroughUnchanged', () => {
+  // A 6-digit year is out of Date's range; the API answers with its own 400.
+  expect(() => toApiDateTime('275760-09-14T00:00')).not.toThrow()
+  expect(toApiDateTime('275760-09-14T00:00')).toBe('275760-09-14T00:00')
+})
