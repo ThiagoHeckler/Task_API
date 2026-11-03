@@ -293,6 +293,7 @@ Expected: `Successfully applied 1 migration`, `Started TaskApiApplication`; `doc
 - [ ] **Step 6: Limite por IP não burlável**
 
 Run: `for i in $(seq 1 130); do curl -s -o /dev/null -w '%{http_code}\n' -H "X-Forwarded-For: 10.0.0.$i" https://tasks.thiagoheckler.com.br/api/tasks; done | sort | uniq -c`
+Run de novo, depois de 1 min, com `-H "Forwarded: for=10.0.0.$i"` no lugar do `X-Forwarded-For` (o Spring lê o `Forwarded` primeiro; o Caddy remove esse header).
 Expected: ~120 × `401` e o resto `429`. Se nenhum 429 aparecer, o XFF forjado está passando: **tirar a demo do ar** (`docker compose stop task-api`) antes de investigar.
 
 - [ ] **Step 7: Roteiro no navegador** (aba anônima, `https://tasks.thiagoheckler.com.br`): cadastro → token abreviado na linha do tempo → categoria → tag → tarefa → concluir (`completedAt` em horário de SP) → excluir conta. "Ver somente API" abre o Swagger, e o "Try it out" de `POST /users` chama `https://tasks.thiagoheckler.com.br/api/users`. `https://tasks.thiagoheckler.com.br/nao-existe` mostra o 404 do Next. Certificado válido. Em `https://thiagoheckler.com.br` e nos outros subdomínios nada mudou.

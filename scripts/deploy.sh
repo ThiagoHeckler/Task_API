@@ -42,4 +42,14 @@ rsync -a --delete web/out/ "$VPS:$PORTFOLIO_DIR/sites/tasks/"
 echo "==> API na VPS"
 ssh "$VPS" "cd '$PORTFOLIO_DIR' && docker compose pull task-api && docker compose up -d task-api"
 
-echo "Publicado: $IMAGE:$SHA"
+# `up -d` volta 0 mesmo se a API cair no boot (Flyway, segredo, memória): espera ela responder.
+echo "==> Esperando a API responder (até 150 s)"
+for _ in $(seq 1 30); do
+  if curl -fsS -o /dev/null https://tasks.thiagoheckler.com.br/api/v3/api-docs; then
+    echo "Publicado: $IMAGE:$SHA"
+    exit 0
+  fi
+  sleep 5
+done
+echo "A API não respondeu. Veja: ssh $VPS \"cd '$PORTFOLIO_DIR' && docker compose logs --tail 100 task-api\"" >&2
+exit 1
