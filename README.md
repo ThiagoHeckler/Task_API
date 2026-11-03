@@ -8,7 +8,9 @@ API REST de gerenciamento de tarefas (to-do list) com autenticação JWT, constr
 ![Maven](https://img.shields.io/badge/Maven-C71A36)
 ![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)
 
-> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI, e o site de demonstração (pasta [`web/`](web/)) está pronto; o próximo passo é o deploy. O roadmap completo está no final deste documento.
+> **Status:** em desenvolvimento. O CRUD de usuários, categorias, tags e tarefas está completo e protegido por autenticação JWT. A documentação interativa está disponível via Swagger UI, e o site de demonstração (pasta [`web/`](web/)) está pronto e o deploy está configurado (imagem Docker, perfil `prod` e [`scripts/deploy.sh`](scripts/deploy.sh)). O roadmap completo está no final deste documento.
+
+**Demo:** [tasks.thiagoheckler.com.br](https://tasks.thiagoheckler.com.br) · **Swagger:** [tasks.thiagoheckler.com.br/api/swagger-ui/index.html](https://tasks.thiagoheckler.com.br/api/swagger-ui/index.html)
 
 ---
 

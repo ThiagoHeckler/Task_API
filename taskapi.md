@@ -273,7 +273,7 @@ teto diário de cadastros é atingido.
 | 6 | Services + Controllers (CRUD completo das 4 entidades) | ✅ |
 | 7 | Autenticação JWT | ✅ |
 | 8 | Swagger / OpenAPI | ✅ (ligar ou não em produção fica para a fase 9) |
-| 9 | Deploy (junto com a demo da fase 11) | 🚧 parte 1 (API pronta para produção) ✅; deploy na VPS pendente |
+| 9 | Deploy (junto com a demo da fase 11) | 🚧 partes 1 e 3 (API pronta, imagem, Portfolio configurado) ✅; primeira subida na VPS pendente |
 | 10 | Fechamento da API (testes, polimento) | ⬜ |
 | 11 | Front-end de vitrine: demo com tela dividida (antecipada, vai junto com o deploy) | 🚧 parte 2 (front em `web/`) ✅; publicação com o deploy |
 
@@ -288,8 +288,23 @@ Demo com tela dividida + deploy (spec `docs/superpowers/specs/2026-10-28-demo-te
    teto diário, limite por IP, limpeza das contas, forwarded headers.
 2. ~~Parte 2 — front Next.js~~ ✅ (plano `docs/superpowers/plans/2026-10-29-demo-parte2-front.md`):
    site estático em `web/`.
-3. **Parte 3 — deploy** (próximo) em `tasks.thiagoheckler.com.br` (VPS Hostinger, repo `Portfolio`, Caddy,
-   PostgreSQL 17): plano a escrever. Swagger fica ligado em produção.
+3. **Parte 3 — deploy** (plano `docs/superpowers/plans/2026-11-02-demo-parte3-deploy.md`):
+   código pronto (Dockerfile, perfil `prod`, `scripts/deploy.sh`; no repo `Portfolio`, branch
+   `feat/task-api-deploy`: serviço `task-api`, bloco do Caddy, `.env.example`). Falta a
+   primeira subida na VPS (Thiago).
+
+### Deploy
+
+- Imagem `thiagoheckler/task-api` (Docker Hub), tags `latest` e SHA curto do commit; build
+  multi-stage (`maven:3.9-eclipse-temurin-25` → `eclipse-temurin:25-jre-alpine`, usuário não-root).
+  A imagem sobe com `SPRING_PROFILES_ACTIVE=prod` (`application-prod.yml`).
+- Variáveis na VPS (`.env` do Portfolio): `TASKAPI_JWT_SECRET` (obrigatória),
+  `TASKAPI_SIGNUP_DAILY_LIMIT`, `TASKAPI_RATE_LIMIT_PER_MINUTE`; banco pelas
+  `SPRING_DATASOURCE_*` do compose.
+- Caddy: `/` serve `sites/tasks/` (cópia do `web/out`), `/api/*` vai para `task-api:8080` sem o
+  prefixo, com `X-Forwarded-For {remote_host}` e `X-Forwarded-Prefix /api`. A API não publica porta.
+- Publicar: `VPS=dev@72.60.49.243 PORTFOLIO_DIR=<pasta> scripts/deploy.sh`. Rollback no
+  cabeçalho do script.
 
 ---
 
@@ -350,6 +365,9 @@ DEMO_SIGNUP_DAILY_LIMIT=2 DEMO_RATE_LIMIT_PER_MINUTE=10 ./mvnw spring-boot:run
 
 # recriar o banco do zero (CUIDADO: apaga dados; o Flyway reaplica as migrations ao subir a API)
 docker compose down -v && docker compose up -d
+
+# imagem de produção local (precisa de um PostgreSQL acessível e JWT_SECRET)
+docker build -t thiagoheckler/task-api:latest .
 
 # psql dentro do container
 docker exec -it taskapi-db psql -U thiago -d taskapi
